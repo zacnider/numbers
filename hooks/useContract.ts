@@ -1,45 +1,44 @@
 // hooks/useContract.ts
-// Wagmi v2 API doğru kullanım - tam işlevsellik ile
+// Hibrit yaklaşım: Wagmi için temel cüzdan etkileşimleri + saf ethers.js için kontrat çağrıları
 
 import { useState, useCallback } from 'react';
 import { useWalletManager } from './useWalletManager';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contracts';
-import { useAccount, useContractWrite, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { ethers } from 'ethers';
 
 export const useContract = () => {
-  const { currentWallet } = useWalletManager();
+  // Warpcast/Wagmi bağlantıları için useAccount hook'unu kullanmaya devam ediyoruz
   const { address } = useAccount();
+  const { currentWallet } = useWalletManager();
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Kontrat yazma işlemleri
-  const startGameWrite = useContractWrite({
-    abi: CONTRACT_ABI,
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    functionName: 'startGame',
-  });
 
-  const makeMoveWrite = useContractWrite({
-    abi: CONTRACT_ABI,
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    functionName: 'makeMove',
-  });
-
-  const completeGameWrite = useContractWrite({
-    abi: CONTRACT_ABI,
-    address: CONTRACT_ADDRESS as `0x${string}`,
-    functionName: 'completeGame',
-  });
+  // Kontrat örneği oluşturma helper fonksiyonu
+  const getContract = useCallback(() => {
+    if (!currentWallet) {
+      throw new Error('Wallet not connected');
+    }
+    
+    // Provider oluştur
+    const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+    
+    // Signer oluştur
+    const wallet = new ethers.Wallet(currentWallet.privateKey, provider);
+    
+    // Kontrat örneği oluştur
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+    
+    return contract;
+  }, [currentWallet]);
   
-  // İşlem durumunu takip etmek için - manuel bekleme kullanacağız
-  const manualWaitForReceipt = async (hash: `0x${string}`) => {
-    // Basit bir manuel bekleme fonksiyonu
+  // İşlem bekleme fonksiyonu
+  const waitForTransaction = async (txHash: string) => {
+    const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+    
     return new Promise<any>((resolve, reject) => {
       const checkReceipt = async () => {
         try {
-          // Ethers.js kullanarak transaction receipt alma
-          const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
-          const receipt = await provider.getTransactionReceipt(hash);
+          const receipt = await provider.getTransactionReceipt(txHash);
           
           if (receipt) {
             resolve(receipt);
@@ -77,11 +76,14 @@ export const useContract = () => {
     try {
       setIsProcessing(true);
       
-      // Yazma işlemi
-      const result = await startGameWrite.writeContract();
+      // Kontrat al
+      const contract = getContract();
       
-      // Manuel işlem bekleme
-      const receipt = await manualWaitForReceipt(result);
+      // startGame fonksiyonunu çağır
+      const tx = await contract.startGame();
+      
+      // İşlemin tamamlanmasını bekle
+      const receipt = await waitForTransaction(tx.hash);
       
       return receipt;
     } catch (error) {
@@ -90,7 +92,7 @@ export const useContract = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [currentWallet, address, isProcessing, startGameWrite]);
+  }, [currentWallet, address, isProcessing, getContract]);
 
   // Hamle yapma
   const makeMove = useCallback(async () => {
@@ -99,18 +101,21 @@ export const useContract = () => {
     }
 
     try {
-      // Yazma işlemi
-      const result = await makeMoveWrite.writeContract();
+      // Kontrat al
+      const contract = getContract();
       
-      // Manuel işlem bekleme
-      const receipt = await manualWaitForReceipt(result);
+      // makeMove fonksiyonunu çağır
+      const tx = await contract.makeMove();
+      
+      // İşlemin tamamlanmasını bekle
+      const receipt = await waitForTransaction(tx.hash);
       
       return receipt;
     } catch (error) {
       console.error('Failed to make move:', error);
       throw error;
     }
-  }, [currentWallet, address, makeMoveWrite]);
+  }, [currentWallet, address, getContract]);
 
   // Oyun tamamlama
   const completeGame = useCallback(async () => {
@@ -125,11 +130,14 @@ export const useContract = () => {
     try {
       setIsProcessing(true);
       
-      // Yazma işlemi
-      const result = await completeGameWrite.writeContract();
+      // Kontrat al
+      const contract = getContract();
       
-      // Manuel işlem bekleme
-      const receipt = await manualWaitForReceipt(result);
+      // completeGame fonksiyonunu çağır
+      const tx = await contract.completeGame();
+      
+      // İşlemin tamamlanmasını bekle
+      const receipt = await waitForTransaction(tx.hash);
       
       return receipt;
     } catch (error) {
@@ -138,7 +146,7 @@ export const useContract = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [currentWallet, address, isProcessing, completeGameWrite]);
+  }, [currentWallet, address, isProcessing, getContract]);
 
   return {
     startGame,
