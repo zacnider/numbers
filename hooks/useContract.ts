@@ -35,10 +35,10 @@ export const useContract = () => {
   }, []);
   
   // İşlem bekleme fonksiyonu
-  const waitForTransaction = async (txHash: string) => {
+  const waitForTransaction = async (txHash) => {
     const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
     
-    return new Promise<any>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const checkReceipt = async () => {
         try {
           const receipt = await provider.getTransactionReceipt(txHash);
@@ -178,7 +178,7 @@ export const useContract = () => {
   }, [getContract]);
   
   // Belirli bir cüzdanı al
-  const getWallet = useCallback(async (index: number) => {
+  const getWallet = useCallback(async (index) => {
     try {
       const contract = getContract();
       const walletData = await contract.getWallet(index);
@@ -190,7 +190,7 @@ export const useContract = () => {
   }, [getContract]);
   
   // Yeni cüzdan oluştur
-  const createWalletOnChain = useCallback(async (encryptedPrivateKey: string, encryptedMnemonic: string) => {
+  const createWalletOnChain = useCallback(async (encryptedPrivateKey, encryptedMnemonic) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
@@ -221,7 +221,7 @@ export const useContract = () => {
   }, [address, isProcessing, getContract]);
   
   // Cüzdan sil
-  const removeWalletOnChain = useCallback(async (index: number) => {
+  const removeWalletOnChain = useCallback(async (index) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
@@ -252,7 +252,7 @@ export const useContract = () => {
   }, [address, isProcessing, getContract]);
   
   // Aktif cüzdanı ayarla
-  const setActiveWalletOnChain = useCallback(async (index: number) => {
+  const setActiveWalletOnChain = useCallback(async (index) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
