@@ -86,11 +86,11 @@ export const useContract = () => {
       const encodedData = contractInterface.encodeFunctionData(functionName, []);
       
       // Gas tahmini ve güvenli bir limit
-      const gasEstimate = 100000; // Sabit gas limit
+      const gasEstimate = 80000; // Sabit gas limit
       
       // Gas fiyatı
       const gasPrice = await provider.getGasPrice();
-      const gasPriceIncreased = gasPrice.mul(100).div(100); // %20 fazla
+      const gasPriceIncreased = gasPrice.mul(120).div(100); // %20 fazla
       
       console.log(`Gas price: ${ethers.utils.formatUnits(gasPriceIncreased, 'gwei')} gwei`);
       
