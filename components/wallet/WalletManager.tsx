@@ -1,5 +1,5 @@
-// components/wallet/WalletManager.tsx
-// Cüzdan yönetim bileşeni - güncellenmiş versiyon
+// components/wallet/WalletManager.tsx için düzeltme
+// TypeScript tanımlarına uyacak şekilde bileşen güncellendi
 
 import React from "react";
 import { WalletManagerProps } from "@/types";
@@ -132,7 +132,7 @@ export const WalletManager: React.FC<WalletManagerProps> = ({
                   }`}
                 >
                   <span className="truncate max-w-[150px]">
-                    {wallet.address.substring(0, 6)}...{wallet.address.substring(38)}
+                    {wallet.address.substring(0, 8)}...{wallet.address.substring(38)}
                   </span>
                   <div className="flex gap-1">
                     <button 
