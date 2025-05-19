@@ -1,5 +1,5 @@
 // components/modals/GameCompleteModal.tsx
-// Oyun tamamlama modalı
+// Oyun tamamlama modalı - İngilizce versiyonu
 
 import React, { useEffect } from "react";
 
@@ -14,7 +14,7 @@ export const GameCompleteModal: React.FC<GameCompleteModalProps> = ({
   timeRemaining,
   onPlayAgain,
 }) => {
-  // Zamanı biçimlendir (MM:SS)
+  // Format time as MM:SS
   const formatTime = (ms: number) => {
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -22,27 +22,27 @@ export const GameCompleteModal: React.FC<GameCompleteModalProps> = ({
     return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
   
-  // Konfeti efekti
+  // Confetti effect
   useEffect(() => {
     const createConfetti = () => {
       const container = document.getElementById('confetti-container');
       if (!container) return;
       
-      // Temizle
+      // Clear
       container.innerHTML = '';
       
-      // 100 konfeti oluştur
+      // Create 100 confetti pieces
       for (let i = 0; i < 100; i++) {
         const confetti = document.createElement('div');
         
-        // Rastgele özellikler
+        // Random properties
         const size = Math.random() * 10 + 5; // 5-15px
         const color = `hsl(${Math.random() * 360}, 100%, 70%)`;
         const left = Math.random() * 100; // 0-100%
         const duration = Math.random() * 3 + 2; // 2-5s
         const delay = Math.random() * 1.5; // 0-1.5s
         
-        // Stilleri uygula
+        // Apply styles
         confetti.style.position = 'absolute';
         confetti.style.width = `${size}px`;
         confetti.style.height = `${size}px`;
@@ -59,7 +59,7 @@ export const GameCompleteModal: React.FC<GameCompleteModalProps> = ({
     
     createConfetti();
     
-    // CSS animasyonu
+    // CSS animation
     const style = document.createElement('style');
     style.textContent = `
       @keyframes fall {
@@ -83,24 +83,24 @@ export const GameCompleteModal: React.FC<GameCompleteModalProps> = ({
   return (
     <div className="modal">
       <div className="modal-content text-center">
-        <h2 className="text-2xl font-bold mb-4 text-indigo-600">Tebrikler!</h2>
+        <h2 className="text-2xl font-bold mb-4 text-indigo-600">Congratulations!</h2>
         
         <div id="confetti-container" className="absolute inset-0 pointer-events-none overflow-hidden"></div>
         
         <div className="my-6">
-          <p className="text-lg mb-2">Bulmacayı <span className="font-bold text-indigo-600">{moves}</span> hamlede tamamladınız!</p>
-          <p className="text-lg">Kalan süre: <span className="font-bold text-indigo-600">{formatTime(timeRemaining)}</span></p>
+          <p className="text-lg mb-2">You completed the puzzle in <span className="font-bold text-indigo-600">{moves}</span> moves!</p>
+          <p className="text-lg">Time remaining: <span className="font-bold text-indigo-600">{formatTime(timeRemaining)}</span></p>
         </div>
         
         <div className="bg-indigo-50 p-4 rounded-md mb-6">
-          <p className="text-sm">Başarınız blockchain'e kaydedildi! İşleminiz onaylandığında MON ödülünüz cüzdanınıza yatırılacak.</p>
+          <p className="text-sm">Your achievement has been recorded on the blockchain! Your MON reward will be deposited into your wallet once the transaction is confirmed.</p>
         </div>
         
         <button
           className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium"
           onClick={onPlayAgain}
         >
-          Tekrar Oyna
+          Play Again
         </button>
       </div>
     </div>
