@@ -1,5 +1,5 @@
 // components/modals/DepositModal.tsx
-// Para yatırma modalı
+// Para yatırma modalı - İngilizce versiyonu
 
 import React, { useState } from "react";
 
@@ -25,7 +25,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     
     // Validation
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      setError("Lütfen geçerli bir miktar girin");
+      setError("Please enter a valid amount");
       return;
     }
     
@@ -34,9 +34,9 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     
     try {
       await onDeposit(amount);
-      // İşlem başarılıysa modal kapatılacak
+      // Modal will be closed on success
     } catch (error: any) {
-      setError(error.message || "Para yatırma işlemi başarısız oldu");
+      setError(error.message || "Deposit failed");
       setIsSubmitting(false);
     }
   };
@@ -44,32 +44,32 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('Panoya kopyalandı!');
+        alert('Copied to clipboard!');
       })
       .catch(err => {
-        console.error('Kopyalama başarısız:', err);
+        console.error('Failed to copy:', err);
       });
   };
 
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-bold mb-4">MON Yatır</h2>
+        <h2 className="text-xl font-bold mb-4">Deposit MON</h2>
         
-        <p className="mb-4">Warpcast cüzdanınızdan oyun içi cüzdanınıza MON token yatırın.</p>
+        <p className="mb-4">Deposit MON tokens from your Warpcast wallet to your in-game wallet.</p>
         
         <div className="bg-gray-50 rounded-md p-4 mb-4">
           <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gönderen (Warpcast):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">From (Warpcast):</label>
             <div className="flex items-center">
-              <p className="text-sm font-mono bg-white p-2 rounded-l-md border border-gray-300 flex-grow truncate">
+              <p className="text-sm font-mono bg-white p-2 rounded-md border border-gray-300 flex-grow truncate">
                 {metamaskAddress}
               </p>
             </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Alıcı (Oyun Cüzdanı):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To (Game Wallet):</label>
             <div className="flex items-center">
               <p className="text-sm font-mono bg-white p-2 rounded-l-md border border-gray-300 flex-grow truncate">
                 {gameWalletAddress}
@@ -78,7 +78,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                 className="bg-gray-100 hover:bg-gray-200 border border-gray-300 border-l-0 p-2 rounded-r-md"
                 onClick={() => copyToClipboard(gameWalletAddress)}
               >
-                Kopyala
+                Copy
               </button>
             </div>
           </div>
@@ -87,7 +87,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-              Miktar (MON):
+              Amount (MON):
             </label>
             <input
               type="number"
@@ -100,7 +100,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               className="w-full p-2 border border-gray-300 rounded-md"
               required
             />
-            <p className="text-xs text-gray-500 mt-1">Minimum miktar: 0.001 MON</p>
+            <p className="text-xs text-gray-500 mt-1">Minimum amount: 0.001 MON</p>
             
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
           </div>
@@ -112,7 +112,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               onClick={onClose}
               disabled={isSubmitting}
             >
-              İptal
+              Cancel
             </button>
             <button
               type="submit"
@@ -123,7 +123,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
               }`}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "İşleniyor..." : "Yatır"}
+              {isSubmitting ? "Processing..." : "Deposit"}
             </button>
           </div>
         </form>
