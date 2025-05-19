@@ -1,5 +1,5 @@
 // hooks/useGameState.ts
-// Oyun durumu yönetimi için hook
+// useContract hook'una uygun olarak güncellendi
 
 import { useState, useEffect, useCallback } from 'react';
 import { GAME_TIME_LIMIT } from '@/lib/constants';
@@ -134,7 +134,7 @@ export const useGameState = (size = 4) => {
   // Yeni oyun başlat
   const startGame = useCallback(async () => {
     if (!currentWallet || parseFloat(walletBalance) === 0) {
-      alert("Oyun oynamak için MON tokenleri olan bir cüzdana ihtiyacınız var");
+      alert("You need a wallet with MON tokens to play the game");
       return;
     }
 
@@ -153,8 +153,8 @@ export const useGameState = (size = 4) => {
       setIsSolved(false);
       setIsGameOver(false);
     } catch (error) {
-      console.error("Oyun başlatılamadı:", error);
-      alert("Oyun başlatılamadı. Lütfen tekrar deneyin.");
+      console.error("Failed to start game:", error);
+      alert("Failed to start game. Please try again.");
     }
   }, [currentWallet, walletBalance, size, startGameOnChain]);
 
@@ -188,7 +188,7 @@ export const useGameState = (size = 4) => {
         handleGameCompletion();
       }
     } catch (error) {
-      console.error("Hamle yapılamadı:", error);
+      console.error("Failed to make move:", error);
       // Hata durumunda oyunu sürdür, kullanıcıya gösterme
     }
   }, [board, emptyTile, isGameActive, size, makeMove]);
@@ -207,7 +207,7 @@ export const useGameState = (size = 4) => {
       // Blockchain'de oyun tamamlamayı kaydet
       await completeGame();
     } catch (error) {
-      console.error("Oyun tamamlama kaydedilemedi:", error);
+      console.error("Failed to record game completion:", error);
       // Hatayı görmezden gel, kullanıcı yine de ödülünü görebilmeli
     }
   }, [timerId, completeGame]);
@@ -243,8 +243,15 @@ export const useGameState = (size = 4) => {
 
   // İpucu göster
   const showHint = useCallback(() => {
-    // TODO: İpucu mantığı eklenebilir
-    console.log("İpucu gösteriliyor");
+    // Bu basit bir ipucu, sadece kaydırılabilir karoları daha belirgin şekilde vurgula
+    const slidableTiles = document.querySelectorAll('.game-tile.slidable');
+    slidableTiles.forEach((tile) => {
+      // Vurgu efekti için bir sınıf ekleyip kaldır
+      tile.classList.add('hint');
+      setTimeout(() => {
+        tile.classList.remove('hint');
+      }, 1500);
+    });
   }, []);
 
   return {
