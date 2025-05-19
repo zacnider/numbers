@@ -1,5 +1,5 @@
 // components/modals/WithdrawModal.tsx
-// Para çekme modalı
+// Para çekme modalı - İngilizce versiyonu
 
 import React, { useState } from "react";
 
@@ -27,12 +27,12 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
     
     // Validation
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      setError("Lütfen geçerli bir miktar girin");
+      setError("Please enter a valid amount");
       return;
     }
     
     if (parseFloat(amount) > parseFloat(balance)) {
-      setError(`Yetersiz bakiye. Mevcut bakiyeniz: ${balance} MON`);
+      setError(`Insufficient balance. Your current balance is ${balance} MON`);
       return;
     }
     
@@ -41,9 +41,9 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
     
     try {
       await onWithdraw(amount);
-      // İşlem başarılıysa modal kapatılacak
+      // Modal will be closed on success
     } catch (error: any) {
-      setError(error.message || "Para çekme işlemi başarısız oldu");
+      setError(error.message || "Withdrawal failed");
       setIsSubmitting(false);
     }
   };
@@ -51,10 +51,10 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('Panoya kopyalandı!');
+        alert('Copied to clipboard!');
       })
       .catch(err => {
-        console.error('Kopyalama başarısız:', err);
+        console.error('Failed to copy:', err);
       });
   };
 
@@ -65,13 +65,13 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   return (
     <div className="modal" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-bold mb-4">MON Çek</h2>
+        <h2 className="text-xl font-bold mb-4">Withdraw MON</h2>
         
-        <p className="mb-4">Oyun içi cüzdanınızdan Warpcast cüzdanınıza MON token çekin.</p>
+        <p className="mb-4">Withdraw MON tokens from your in-game wallet to your Warpcast wallet.</p>
         
         <div className="bg-gray-50 rounded-md p-4 mb-4">
           <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gönderen (Oyun Cüzdanı):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">From (Game Wallet):</label>
             <div className="flex items-center">
               <p className="text-sm font-mono bg-white p-2 rounded-md border border-gray-300 flex-grow truncate">
                 {gameWalletAddress}
@@ -80,7 +80,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Alıcı (Warpcast):</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To (Warpcast):</label>
             <div className="flex items-center">
               <p className="text-sm font-mono bg-white p-2 rounded-l-md border border-gray-300 flex-grow truncate">
                 {metamaskAddress}
@@ -89,7 +89,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
                 className="bg-gray-100 hover:bg-gray-200 border border-gray-300 border-l-0 p-2 rounded-r-md"
                 onClick={() => copyToClipboard(metamaskAddress || '')}
               >
-                Kopyala
+                Copy
               </button>
             </div>
           </div>
@@ -99,10 +99,10 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
           <div className="mb-4">
             <div className="flex justify-between items-center mb-1">
               <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-                Miktar (MON):
+                Amount (MON):
               </label>
               <span className="text-sm text-gray-600">
-                Mevcut: <span className="font-medium">{parseFloat(balance).toFixed(4)} MON</span>
+                Available: <span className="font-medium">{parseFloat(balance).toFixed(4)} MON</span>
               </span>
             </div>
             
@@ -128,7 +128,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
             </div>
             
             <p className="text-xs text-gray-500 mt-1">
-              İşlem ücretleri otomatik olarak düşülecektir. Minimum miktar: 0.001 MON
+              Transaction fees will be automatically deducted. Minimum amount: 0.001 MON
             </p>
             
             {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
@@ -141,7 +141,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
               onClick={onClose}
               disabled={isSubmitting}
             >
-              İptal
+              Cancel
             </button>
             <button
               type="submit"
@@ -152,7 +152,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
               }`}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "İşleniyor..." : "Çek"}
+              {isSubmitting ? "Processing..." : "Withdraw"}
             </button>
           </div>
         </form>
