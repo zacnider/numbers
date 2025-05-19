@@ -1,5 +1,5 @@
 // types/index.ts
-// Tip tanımları
+// Tip tanımlamaları - WalletManagerProps güncellendi
 
 export interface SafeAreaInsets {
   top?: number;
@@ -22,6 +22,7 @@ export interface Transaction {
   timestamp: number;
 }
 
+// WalletManagerProps'taki metamaskAddress tipini güncelledik
 export interface WalletManagerProps {
   wallets: Wallet[];
   currentWallet: Wallet | null;
@@ -31,7 +32,7 @@ export interface WalletManagerProps {
   onViewDetails: () => void;
   onConnectMetaMask: () => void;
   isConnectedToMetaMask: boolean;
-  metamaskAddress: string | null;
+  metamaskAddress: string | null; // Tip düzeltildi: '0x${string} | undefined' yerine 'string | null'
 }
 
 export interface WalletActionsProps {
