@@ -1,5 +1,5 @@
 // hooks/useWalletManager.ts
-// Cüzdan yönetimi hook'u - metamaskAddress tipini düzeltildi
+// Cüzdan yönetimi hook'u - sendTransaction tiplendirme hatası düzeltildi
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useWalletClient, useSendTransaction } from 'wagmi';
@@ -183,21 +183,22 @@ export const useWalletManager = () => {
     }
   }, [wallets, currentWallet]);
   
-  // Para yatır
+  // Para yatır - Düzeltildi: sendTransaction'dan dönen veri tipi
   const depositFunds = useCallback(async (amount: string) => {
     if (!isConnected || !address || !currentWallet) {
       throw new Error('Cüzdan bağlı değil');
     }
     
     try {
-      const tx = await sendTransaction({
+      // sendTransaction Promise<{ hash: `0x${string}` }> döndürür, void değil
+      const result = await sendTransaction({
         to: currentWallet.address as `0x${string}`,
         value: parseEther(amount),
       });
       
       // İşlemi listeye ekle
       const newTransaction = {
-        hash: tx.hash,
+        hash: result.hash, // Şimdi hash mevcut
         type: 'Deposit',
         status: 'pending',
         amount,
@@ -206,7 +207,7 @@ export const useWalletManager = () => {
       
       setTransactions(prev => [newTransaction, ...prev].slice(0, 20)); // Maks 20 işlem tut
       
-      return tx.hash;
+      return result.hash;
     } catch (error) {
       console.error('Yatırma işlemi başarısız:', error);
       throw error;
