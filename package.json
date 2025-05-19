@@ -1,3 +1,6 @@
+// package.json
+// crypto-js kütüphanesini dependencies arasına ekledik
+
 {
   "name": "monad-sliding-puzzle-miniapp",
   "version": "0.1.0",
@@ -14,6 +17,7 @@
     "@farcaster/frame-sdk": "^0.0.36",
     "@farcaster/frame-wagmi-connector": "^0.0.24",
     "@tanstack/react-query": "^5.64.2",
+    "crypto-js": "^4.2.0",
     "ethers": "^5.7.2",
     "next": "14.2.6",
     "react": "^18",
@@ -23,6 +27,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
