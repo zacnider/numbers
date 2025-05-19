@@ -1,0 +1,75 @@
+// types/index.ts
+// Tip tanımlamaları - WalletManagerProps güncellendi (blockchain kaydetme özelliği)
+
+export interface SafeAreaInsets {
+  top?: number;
+  bottom?: number;
+  left?: number;
+  right?: number;
+}
+
+export interface Wallet {
+  address: string;
+  privateKey: string;
+  mnemonic: string;
+}
+
+export interface Transaction {
+  hash: string;
+  type: string;
+  status: string;
+  amount?: string;
+  timestamp: number;
+}
+
+// WalletManagerProps'taki metamaskAddress tipini güncelledik ve blockchain kaydetme özelliği ekledik
+export interface WalletManagerProps {
+  wallets: Wallet[];
+  currentWallet: Wallet | null;
+  onCreateWallet: () => void;
+  onSelectWallet: (address: string) => void;
+  onDeleteWallet: (address: string) => void;
+  onViewDetails: () => void;
+  onConnectMetaMask: () => void;
+  onSaveWallets: () => Promise<boolean>; // Yeni: Cüzdanları blockchain'e kaydetme fonksiyonu
+  isConnectedToMetaMask: boolean;
+  metamaskAddress: string | null; // Tip düzeltildi: '0x${string} | undefined' yerine 'string | null'
+  isBlockchainSynced: boolean; // Yeni: Cüzdanların blockchain ile senkronize olup olmadığı
+  isSavingToBlockchain?: boolean; // Yeni: Cüzdanlar blockchain'e kaydedilirken
+}
+
+export interface WalletActionsProps {
+  walletBalance: string;
+  onDeposit: () => void;
+  onWithdraw: () => void;
+  hasWallet: boolean;
+}
+
+export interface TransactionListProps {
+  transactions: Transaction[];
+}
+
+export interface BoardProps {
+  board: number[][];
+  emptyTile: { row: number; col: number };
+  onTileClick: (row: number, col: number) => void;
+  size: number;
+  isActive: boolean;
+}
+
+export interface TileProps {
+  value: number;
+  isEmpty: boolean;
+  isSlidable: boolean;
+  onClick: () => void;
+  row: number;
+  col: number;
+}
+
+export interface GameControlsProps {
+  onStartGame: () => void;
+  onHint?: () => void;
+  isGameActive: boolean;
+  hasWallet: boolean;
+  hasBalance: boolean;
+}
