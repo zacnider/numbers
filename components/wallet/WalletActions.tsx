@@ -18,10 +18,10 @@ export const WalletActions: React.FC<WalletActionsProps> = ({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-lg font-bold mb-3">Cüzdan İşlemleri</h2>
+      <h2 className="text-lg font-bold mb-3">Wallet Information</h2>
       
       <div className="bg-gray-50 p-3 rounded-md mb-4 font-semibold">
-        Mevcut Bakiye: <span className="text-indigo-600">{parseFloat(walletBalance).toFixed(4)} MON</span>
+        MON Balance: <span className="text-indigo-600">{parseFloat(walletBalance).toFixed(4)} MON</span>
       </div>
       
       <div className="flex gap-2">
@@ -34,7 +34,7 @@ export const WalletActions: React.FC<WalletActionsProps> = ({
           onClick={onDeposit}
           disabled={!hasWallet}
         >
-          MON Yatır
+          MON Deposit
         </button>
         
         <button 
@@ -46,7 +46,7 @@ export const WalletActions: React.FC<WalletActionsProps> = ({
           onClick={onWithdraw}
           disabled={!hasWallet || parseFloat(walletBalance) === 0}
         >
-          MON Çek
+          MON Withdraw
         </button>
       </div>
     </div>
