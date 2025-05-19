@@ -1,5 +1,5 @@
 // hooks/useContract.ts
-// Mevcut kontrat işlevlerini kullanmak için yeniden düzenlendi
+// Cüzdan yönetimi fonksiyonları eklendi (TypeScript versiyonu)
 
 import { useState, useCallback } from 'react';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contracts';
@@ -10,35 +10,43 @@ export const useContract = () => {
   // Warpcast/Wagmi bağlantıları için useAccount hook'unu kullanmaya devam ediyoruz
   const { address } = useAccount();
   const [isProcessing, setIsProcessing] = useState(false);
+  // currentWallet'i kaldırıldı, döngüsel bağımlılık olmasın
 
-  // Kontrat örneği oluşturma helper fonksiyonu
-  const getContract = useCallback(() => {
+  // Salt okunur contract oluşturma fonksiyonu
+  const getReadOnlyContract = useCallback(() => {
     // Provider oluştur
     const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
     
-    // Salt-okunur kontrat örneği (cüzdan olmadan)
-    const readOnlyContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+    // Salt okunur kontrat
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
     
-    // Eğer ethereum ve signer varsa, yazma yetkili kontrat döndür
-    if (window.ethereum) {
-      try {
-        const injectedProvider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = injectedProvider.getSigner();
-        return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-      } catch (error) {
-        console.error('Signer erişilemedi:', error);
-        return readOnlyContract; // Fallback olarak salt-okunur kontrat kullan
-      }
+    return contract;
+  }, []);
+
+  // Kontrat örneği oluşturma helper fonksiyonu (privateKey ile)
+  const getContract = useCallback((privateKey?: string) => {
+    if (!privateKey) {
+      // Salt okunur contrat döndür
+      return getReadOnlyContract();
     }
     
-    return readOnlyContract;
-  }, []);
-  
-  // İşlem bekleme fonksiyonu
-  const waitForTransaction = async (txHash) => {
+    // Provider oluştur
     const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
     
-    return new Promise((resolve, reject) => {
+    // Signer oluştur
+    const wallet = new ethers.Wallet(privateKey, provider);
+    
+    // Kontrat örneği oluştur
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet);
+    
+    return contract;
+  }, [getReadOnlyContract]);
+  
+  // İşlem bekleme fonksiyonu
+  const waitForTransaction = async (txHash: string) => {
+    const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+    
+    return new Promise<any>((resolve, reject) => {
       const checkReceipt = async () => {
         try {
           const receipt = await provider.getTransactionReceipt(txHash);
@@ -67,8 +75,8 @@ export const useContract = () => {
   };
 
   // Oyun başlatma
-  const startGame = useCallback(async () => {
-    if (!address) {
+  const startGame = useCallback(async (privateKey?: string) => {
+    if (!privateKey || !address) {
       throw new Error('Wallet not connected');
     }
 
@@ -80,7 +88,7 @@ export const useContract = () => {
       setIsProcessing(true);
       
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(privateKey);
       
       // startGame fonksiyonunu çağır
       const tx = await contract.startGame();
@@ -98,14 +106,14 @@ export const useContract = () => {
   }, [address, isProcessing, getContract]);
 
   // Hamle yapma
-  const makeMove = useCallback(async () => {
-    if (!address) {
+  const makeMove = useCallback(async (privateKey?: string) => {
+    if (!privateKey || !address) {
       throw new Error('Wallet not connected');
     }
 
     try {
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(privateKey);
       
       // makeMove fonksiyonunu çağır
       const tx = await contract.makeMove();
@@ -121,8 +129,8 @@ export const useContract = () => {
   }, [address, getContract]);
 
   // Oyun tamamlama
-  const completeGame = useCallback(async () => {
-    if (!address) {
+  const completeGame = useCallback(async (privateKey?: string) => {
+    if (!privateKey || !address) {
       throw new Error('Wallet not connected');
     }
 
@@ -134,7 +142,7 @@ export const useContract = () => {
       setIsProcessing(true);
       
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(privateKey);
       
       // completeGame fonksiyonunu çağır
       const tx = await contract.completeGame();
@@ -151,46 +159,46 @@ export const useContract = () => {
     }
   }, [address, isProcessing, getContract]);
 
-  // Cüzdan işlemleri için fonksiyonlar
-  
+  // Cüzdan İşlemleri
+
   // Cüzdan sayısını al
-  const getWalletCount = useCallback(async () => {
+  const getWalletCount = useCallback(async (): Promise<number> => {
     try {
-      const contract = getContract();
+      const contract = getReadOnlyContract();
       const count = await contract.getWalletCount();
       return count.toNumber();
     } catch (error) {
       console.error('Failed to get wallet count:', error);
       return 0;
     }
-  }, [getContract]);
+  }, [getReadOnlyContract]);
   
   // Tüm cüzdanları al
-  const getAllWallets = useCallback(async () => {
+  const getAllWallets = useCallback(async (): Promise<[string[], string[], boolean[]]> => {
     try {
-      const contract = getContract();
+      const contract = getReadOnlyContract();
       const walletData = await contract.getAllWallets();
       return walletData;
     } catch (error) {
       console.error('Failed to get all wallets:', error);
       return [[], [], []]; // Boş dizi üçlüsü döndür (privateKeys, mnemonics, activeStates)
     }
-  }, [getContract]);
+  }, [getReadOnlyContract]);
   
   // Belirli bir cüzdanı al
-  const getWallet = useCallback(async (index) => {
+  const getWallet = useCallback(async (index: number): Promise<[string, string, boolean]> => {
     try {
-      const contract = getContract();
+      const contract = getReadOnlyContract();
       const walletData = await contract.getWallet(index);
       return walletData;
     } catch (error) {
       console.error(`Failed to get wallet at index ${index}:`, error);
       throw error;
     }
-  }, [getContract]);
+  }, [getReadOnlyContract]);
   
   // Yeni cüzdan oluştur
-  const createWalletOnChain = useCallback(async (encryptedPrivateKey, encryptedMnemonic) => {
+  const createWalletOnChain = useCallback(async (encryptedPrivateKey: string, encryptedMnemonic: string, walletPrivateKey?: string) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
@@ -203,7 +211,7 @@ export const useContract = () => {
       setIsProcessing(true);
       
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(walletPrivateKey);
       
       // createWallet fonksiyonunu çağır
       const tx = await contract.createWallet(encryptedPrivateKey, encryptedMnemonic);
@@ -221,7 +229,7 @@ export const useContract = () => {
   }, [address, isProcessing, getContract]);
   
   // Cüzdan sil
-  const removeWalletOnChain = useCallback(async (index) => {
+  const removeWalletOnChain = useCallback(async (index: number, walletPrivateKey?: string) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
@@ -234,7 +242,7 @@ export const useContract = () => {
       setIsProcessing(true);
       
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(walletPrivateKey);
       
       // removeWallet fonksiyonunu çağır
       const tx = await contract.removeWallet(index);
@@ -252,7 +260,7 @@ export const useContract = () => {
   }, [address, isProcessing, getContract]);
   
   // Aktif cüzdanı ayarla
-  const setActiveWalletOnChain = useCallback(async (index) => {
+  const setActiveWalletOnChain = useCallback(async (index: number, walletPrivateKey?: string) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
@@ -265,7 +273,7 @@ export const useContract = () => {
       setIsProcessing(true);
       
       // Kontrat al
-      const contract = getContract();
+      const contract = getContract(walletPrivateKey);
       
       // setActiveWallet fonksiyonunu çağır
       const tx = await contract.setActiveWallet(index);
