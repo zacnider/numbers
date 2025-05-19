@@ -1,5 +1,5 @@
 // hooks/useWalletManager.ts
-// Cüzdan yönetimi hook'u - En basit ve güvenli çözüm
+// Warpcast ağ geçişi için güncellenmiş versiyon
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useWalletClient, useSendTransaction } from 'wagmi';
@@ -110,21 +110,52 @@ export const useWalletManager = () => {
     return () => clearInterval(interval);
   }, [currentWallet]);
   
-  // Warpcast/MetaMask cüzdanını bağla
+  // Ağ durumu değiştiğinde kontrol et ve gerekirse Monad'a geçiş yap
+  useEffect(() => {
+    if (isConnected && chainId !== monadTestnet.id) {
+      console.log('Bağlı ama yanlış ağda, Monad Testnet\'e geçiş yapılıyor...');
+      (async () => {
+        try {
+          await switchChain({ chainId: monadTestnet.id });
+        } catch (error) {
+          console.error('Otomatik ağ geçişi başarısız:', error);
+        }
+      })();
+    }
+  }, [isConnected, chainId, switchChain]);
+  
+  // Warpcast/MetaMask cüzdanını bağla ve otomatik olarak Monad Test ağına geçiş yap
   const connectMetaMask = useCallback(async () => {
-    if (isConnected) return true;
+    if (isConnected) {
+      // Zaten bağlıysa, sadece ağı kontrol edip gerekirse değiştir
+      if (chainId !== monadTestnet.id) {
+        try {
+          console.log('Switching to Monad Testnet...');
+          await switchChain({ chainId: monadTestnet.id });
+        } catch (error) {
+          console.error('Monad Testnet ağına geçiş yapılamadı:', error);
+        }
+      }
+      return true;
+    }
     
     try {
-      connect({ connector: farcasterFrame() });
+      // Önce Warpcast'e bağlan
+      console.log('Connecting to Warpcast...');
+      await connect({ connector: farcasterFrame() });
+      
+      // Kısa bir bekleme süresi ekle (bağlantının tamamlanması için)
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Monad Testnet'e geçiş yap
       if (chainId !== monadTestnet.id) {
+        console.log('Switching to Monad Testnet after connection...');
         await switchChain({ chainId: monadTestnet.id });
       }
       
       return true;
     } catch (error) {
-      console.error('MetaMask bağlanamadı:', error);
+      console.error('Warpcast bağlantısı veya ağ değişimi sırasında hata:', error);
       return false;
     }
   }, [isConnected, connect, chainId, switchChain]);
@@ -225,26 +256,19 @@ export const useWalletManager = () => {
     }
   }, [isConnected, address, currentWallet, sendTransaction]);
   
-  // Para çek
+  // Para çek - Asenkron işlemi arka planda yapacak şekilde güncellendi
   const withdrawFunds = useCallback(async (amount: string) => {
     if (!isConnected || !address || !currentWallet) {
       throw new Error('Cüzdan bağlı değil');
     }
     
     try {
-      // Oyun içi cüzdandan MetaMask'e para çekme mantığı
-      // Bu basitleştirilmiş bir örnektir, gerçek uygulamada daha karmaşık olabilir
-      const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
-      const wallet = new ethers.Wallet(currentWallet.privateKey, provider);
-      
-      const tx = await wallet.sendTransaction({
-        to: address,
-        value: ethers.utils.parseEther(amount),
-      });
+      // Geçici bir işlem hash'i oluştur
+      const tempHash = `0x${Math.random().toString(16).substring(2)}${Date.now().toString(16)}`;
       
       // İşlemi listeye ekle
       const newTransaction = {
-        hash: tx.hash,
+        hash: tempHash,
         type: 'Withdraw',
         status: 'pending',
         amount,
@@ -253,7 +277,32 @@ export const useWalletManager = () => {
       
       setTransactions(prev => [newTransaction, ...prev].slice(0, 20)); // Maks 20 işlem tut
       
-      return tx.hash;
+      // Arka planda işlemi gönder
+      (async () => {
+        try {
+          // Oyun içi cüzdandan MetaMask'e para çekme mantığı
+          const provider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz');
+          const wallet = new ethers.Wallet(currentWallet.privateKey, provider);
+          
+          const tx = await wallet.sendTransaction({
+            to: address,
+            value: ethers.utils.parseEther(amount),
+          });
+          
+          // Gerçek işlem hash'i ile güncelle
+          updateTransaction(tempHash, {
+            hash: tx.hash,
+            status: 'pending'
+          });
+          
+        } catch (error) {
+          console.error('Çekme işlemi başarısız:', error);
+          // İşlem durumunu güncelle
+          updateTransactionStatus(tempHash, 'failed');
+        }
+      })();
+      
+      return tempHash;
     } catch (error) {
       console.error('Çekme işlemi başarısız:', error);
       throw error;
@@ -269,6 +318,15 @@ export const useWalletManager = () => {
     );
   }, []);
   
+  // İşlemi güncelle
+  const updateTransaction = useCallback((oldHash: string, updates: Partial<Transaction>) => {
+    setTransactions(prev => 
+      prev.map(tx => 
+        tx.hash === oldHash ? { ...tx, ...updates } : tx
+      )
+    );
+  }, []);
+  
   // Tüm işlemler için durumları kontrol et
   useEffect(() => {
     const checkTransactionStatuses = async () => {
@@ -280,6 +338,9 @@ export const useWalletManager = () => {
       
       for (const tx of pendingTransactions) {
         try {
+          // Geçici hash'ler için kontrolü atla
+          if (tx.hash.includes('random')) continue;
+          
           const receipt = await provider.getTransactionReceipt(tx.hash);
           
           if (receipt) {
