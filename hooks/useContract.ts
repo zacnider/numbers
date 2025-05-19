@@ -90,7 +90,7 @@ export const useContract = () => {
       
       // Gas fiyatı
       const gasPrice = await provider.getGasPrice();
-      const gasPriceIncreased = gasPrice.mul(120).div(100); // %20 fazla
+      const gasPriceIncreased = gasPrice.mul(100).div(100); // %20 fazla
       
       console.log(`Gas price: ${ethers.utils.formatUnits(gasPriceIncreased, 'gwei')} gwei`);
       
