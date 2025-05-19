@@ -1,12 +1,12 @@
 // hooks/useGameState.ts
-// isSolved fonksiyon çağrısı sorunu düzeltildi
+// Blockchain etkileşimlerini arka planda yapan güncelleme
 
 import { useState, useEffect, useCallback } from 'react';
 import { GAME_TIME_LIMIT } from '@/lib/constants';
 import { useWalletManager } from './useWalletManager';
 import { useContract } from './useContract';
 
-// Oyun mantığı yardımcı fonksiyonları - fonksiyon adları karışmasın diye prefixler ekledik
+// Oyun mantığı yardımcı fonksiyonları
 const generateSolvablePuzzle = (size: number) => {
   // Çözülebilir bir bulmaca ile başla
   const board: number[][] = [];
@@ -60,7 +60,7 @@ const generateSolvablePuzzle = (size: number) => {
   return { board, emptyTile };
 };
 
-// Bulmaca çözüldü mü kontrolü - isPuzzleSolved olarak yeniden adlandırıldı
+// Bulmaca çözüldü mü kontrolü
 const isPuzzleSolved = (board: number[][], size: number): boolean => {
   let expectedValue = 1;
   
@@ -131,52 +131,6 @@ export const useGameState = (size = 4) => {
     };
   }, [timerId]);
 
-  // Yeni oyun başlat
-  const startGame = useCallback(async () => {
-    if (!currentWallet || parseFloat(walletBalance) === 0) {
-      alert("You need a wallet with MON tokens to play the game");
-      return;
-    }
-
-    try {
-      // Blockchain'de oyunu başlat
-      await startGameOnChain();
-      
-      // Oyun durumunu sıfırla
-      const { board: newBoard, emptyTile: newEmptyTile } = generateSolvablePuzzle(size);
-      setBoard(newBoard);
-      setEmptyTile(newEmptyTile);
-      setMoves(0);
-      setStartTime(Date.now());
-      setTimeRemaining(GAME_TIME_LIMIT);
-      setIsGameActive(true);
-      setIsSolved(false);
-      setIsGameOver(false);
-    } catch (error) {
-      console.error("Failed to start game:", error);
-      alert("Failed to start game. Please try again.");
-    }
-  }, [currentWallet, walletBalance, size, startGameOnChain]);
-
-  // Oyun tamamlama işleyicisi
-  const handleGameCompletion = useCallback(async () => {
-    if (timerId) {
-      clearInterval(timerId);
-      setTimerId(null);
-    }
-    
-    setIsGameActive(false);
-    setIsSolved(true);
-    
-    try {
-      // Blockchain'de oyun tamamlamayı kaydet
-      await completeGame();
-    } catch (error) {
-      console.error("Failed to record game completion:", error);
-      // Hatayı görmezden gel, kullanıcı yine de ödülünü görebilmeli
-    }
-  }, [timerId, completeGame]);
-
   // Oyun bitti işleyicisi  
   const handleGameOver = useCallback(() => {
     if (timerId) {
@@ -189,8 +143,64 @@ export const useGameState = (size = 4) => {
     setIsGameOver(true);
   }, [timerId]);
 
-  // Karo tıklama işleyicisi
-  const handleTileClick = useCallback(async (row: number, col: number) => {
+  // Oyun tamamlama işleyicisi - kullanıcının beklemesine gerek yok
+  const handleGameCompletion = useCallback(() => {
+    if (timerId) {
+      clearInterval(timerId);
+      setTimerId(null);
+    }
+    
+    // Kullanıcı arayüzünü hemen güncelle
+    setIsGameActive(false);
+    setIsSolved(true);
+    
+    // Blockchain'de oyun tamamlamayı arka planda kaydet
+    (async () => {
+      try {
+        await completeGame();
+        console.log('Oyun tamamlama zincire kaydedildi');
+      } catch (error) {
+        console.error("Oyun tamamlama blockchain'e kaydedilirken hata oluştu:", error);
+        // Hata durumunda kullanıcı hala ödülünü görebilir
+      }
+    })();
+    
+  }, [timerId, completeGame]);
+
+  // Yeni oyun başlat - kullanıcının beklemesine gerek yok
+  const startGame = useCallback(() => {
+    if (!currentWallet || parseFloat(walletBalance) === 0) {
+      alert("You need a wallet with MON tokens to play the game");
+      return;
+    }
+
+    // Oyun durumunu sıfırla - Kullanıcı arayüzünü hemen güncelle
+    const { board: newBoard, emptyTile: newEmptyTile } = generateSolvablePuzzle(size);
+    setBoard(newBoard);
+    setEmptyTile(newEmptyTile);
+    setMoves(0);
+    setStartTime(Date.now());
+    setTimeRemaining(GAME_TIME_LIMIT);
+    setIsGameActive(true);
+    setIsSolved(false);
+    setIsGameOver(false);
+    
+    // Blockchain'de oyunu arka planda başlat
+    (async () => {
+      try {
+        await startGameOnChain();
+        console.log('Oyun zincirde başlatıldı');
+      } catch (error) {
+        console.error("Oyun blockchain'de başlatılırken hata oluştu:", error);
+        // Hata durumunda kullanıcı hala oynamaya devam edebilir, 
+        // ancak isteğe bağlı olarak bir uyarı gösterebilirsiniz
+      }
+    })();
+    
+  }, [currentWallet, walletBalance, size, startGameOnChain]);
+
+  // Karo tıklama işleyicisi - Asenkron işlemleri arka planda yürütecek şekilde güncellendi
+  const handleTileClick = useCallback((row: number, col: number) => {
     if (!isGameActive) return;
 
     // Karonun kaydırılabilir olup olmadığını kontrol et
@@ -200,28 +210,34 @@ export const useGameState = (size = 4) => {
 
     if (!isTileSlidable) return;
 
-    try {
-      // Blockchain'de hamleyi kaydet
-      await makeMove();
-      
-      // Yeni tahtayı oluştur
-      const newBoard = [...board.map(r => [...r])];
-      newBoard[emptyTile.row][emptyTile.col] = newBoard[row][col];
-      newBoard[row][col] = 0;
-      
-      // Durumu güncelle
-      setBoard(newBoard);
-      setEmptyTile({ row, col });
-      setMoves(prev => prev + 1);
-      
-      // Bulmaca çözüldü mü kontrol et - Fonksiyon ismi değiştirildi
-      if (isPuzzleSolved(newBoard, size)) {
-        handleGameCompletion();
-      }
-    } catch (error) {
-      console.error("Failed to make move:", error);
-      // Hata durumunda oyunu sürdür, kullanıcıya gösterme
+    // Yeni tahtayı oluştur - Kullanıcı arayüzünü hemen güncelle
+    const newBoard = [...board.map(r => [...r])];
+    newBoard[emptyTile.row][emptyTile.col] = newBoard[row][col];
+    newBoard[row][col] = 0;
+    
+    // Durumu güncelle - Kullanıcı arayüzü hemen değişsin
+    setBoard(newBoard);
+    setEmptyTile({ row, col });
+    setMoves(prev => prev + 1);
+    
+    // Bulmaca çözüldü mü kontrol et
+    if (isPuzzleSolved(newBoard, size)) {
+      handleGameCompletion();
+      return;
     }
+    
+    // Blockchain'de hamleyi arka planda kaydet - sonucu beklemeden devam et
+    (async () => {
+      try {
+        await makeMove();
+        console.log('Hamle zincire kaydedildi');
+      } catch (error) {
+        console.error("Hamle blockchain'e kaydedilirken hata oluştu:", error);
+        // Hata durumunda kullanıcıya bildirim gösterebilirsiniz
+        // Ancak oyunu kesintiye uğratmak istemiyoruz
+      }
+    })();
+    
   }, [board, emptyTile, isGameActive, size, makeMove, handleGameCompletion]);
 
   // Oyunu sıfırla
