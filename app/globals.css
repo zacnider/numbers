@@ -1,0 +1,134 @@
+/* app/globals.css */
+/* Temel stillerimiz ve Sliding Puzzle oyunu için özel CSS */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #4f46e5;
+  --primary-hover: #4338ca;
+  --secondary-color: #64748b;
+  --secondary-hover: #475569;
+  --background-color: #f8fafc;
+  --card-background: #ffffff;
+  --border-color: #e2e8f0;
+  --text-color: #334155;
+  --text-light: #64748b;
+  --success-color: #10b981;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+}
+
+body {
+  color: var(--text-color);
+  background-color: var(--background-color);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Game related styles */
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto 2rem;
+  position: relative;
+}
+
+.game-tile {
+  @apply bg-indigo-600 text-white flex justify-center items-center text-2xl font-bold rounded-lg cursor-pointer shadow-md transition-transform duration-300;
+}
+
+.game-tile:hover {
+  @apply transform scale-105;
+}
+
+.game-tile.empty {
+  @apply bg-transparent shadow-none cursor-default;
+}
+
+.game-tile.slidable {
+  @apply animate-pulse;
+}
+
+.game-tile.sliding {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Modal styles */
+.modal {
+  @apply fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4;
+}
+
+.modal-content {
+  @apply bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-auto;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Transaction status styles */
+.transaction-status.pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.transaction-status.confirmed {
+  @apply bg-green-100 text-green-800;
+}
+
+.transaction-status.failed {
+  @apply bg-red-100 text-red-800;
+}
+
+/* Wallet item styles */
+.wallet-item.active {
+  @apply border-indigo-300 bg-indigo-50;
+}
+
+/* Time warning style */
+.time-warning {
+  @apply text-red-500;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Message notification styles */
+.message {
+  @apply fixed bottom-5 right-5 py-3 px-5 rounded-md text-white font-bold z-50 max-w-xs;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.success-message {
+  @apply bg-green-500;
+}
+
+.error-message {
+  @apply bg-red-500;
+}
+
+.message.fade-out {
+  opacity: 0;
+}
