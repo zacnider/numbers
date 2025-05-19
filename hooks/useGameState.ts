@@ -1,12 +1,12 @@
 // hooks/useGameState.ts
-// useContract hook'una uygun olarak güncellendi
+// isSolved fonksiyon çağrısı sorunu düzeltildi
 
 import { useState, useEffect, useCallback } from 'react';
 import { GAME_TIME_LIMIT } from '@/lib/constants';
 import { useWalletManager } from './useWalletManager';
 import { useContract } from './useContract';
 
-// Oyun mantığı yardımcı fonksiyonları
+// Oyun mantığı yardımcı fonksiyonları - fonksiyon adları karışmasın diye prefixler ekledik
 const generateSolvablePuzzle = (size: number) => {
   // Çözülebilir bir bulmaca ile başla
   const board: number[][] = [];
@@ -60,8 +60,8 @@ const generateSolvablePuzzle = (size: number) => {
   return { board, emptyTile };
 };
 
-// Bulmaca çözüldü mü kontrolü
-const isSolved = (board: number[][], size: number) => {
+// Bulmaca çözüldü mü kontrolü - isPuzzleSolved olarak yeniden adlandırıldı
+const isPuzzleSolved = (board: number[][], size: number): boolean => {
   let expectedValue = 1;
   
   for (let row = 0; row < size; row++) {
@@ -158,6 +158,37 @@ export const useGameState = (size = 4) => {
     }
   }, [currentWallet, walletBalance, size, startGameOnChain]);
 
+  // Oyun tamamlama işleyicisi
+  const handleGameCompletion = useCallback(async () => {
+    if (timerId) {
+      clearInterval(timerId);
+      setTimerId(null);
+    }
+    
+    setIsGameActive(false);
+    setIsSolved(true);
+    
+    try {
+      // Blockchain'de oyun tamamlamayı kaydet
+      await completeGame();
+    } catch (error) {
+      console.error("Failed to record game completion:", error);
+      // Hatayı görmezden gel, kullanıcı yine de ödülünü görebilmeli
+    }
+  }, [timerId, completeGame]);
+
+  // Oyun bitti işleyicisi  
+  const handleGameOver = useCallback(() => {
+    if (timerId) {
+      clearInterval(timerId);
+      setTimerId(null);
+    }
+    
+    setIsGameActive(false);
+    setTimeRemaining(0);
+    setIsGameOver(true);
+  }, [timerId]);
+
   // Karo tıklama işleyicisi
   const handleTileClick = useCallback(async (row: number, col: number) => {
     if (!isGameActive) return;
@@ -183,46 +214,15 @@ export const useGameState = (size = 4) => {
       setEmptyTile({ row, col });
       setMoves(prev => prev + 1);
       
-      // Bulmaca çözüldü mü kontrol et
-      if (isSolved(newBoard, size)) {
+      // Bulmaca çözüldü mü kontrol et - Fonksiyon ismi değiştirildi
+      if (isPuzzleSolved(newBoard, size)) {
         handleGameCompletion();
       }
     } catch (error) {
       console.error("Failed to make move:", error);
       // Hata durumunda oyunu sürdür, kullanıcıya gösterme
     }
-  }, [board, emptyTile, isGameActive, size, makeMove]);
-
-  // Oyun tamamlama işleyicisi
-  const handleGameCompletion = useCallback(async () => {
-    if (timerId) {
-      clearInterval(timerId);
-      setTimerId(null);
-    }
-    
-    setIsGameActive(false);
-    setIsSolved(true);
-    
-    try {
-      // Blockchain'de oyun tamamlamayı kaydet
-      await completeGame();
-    } catch (error) {
-      console.error("Failed to record game completion:", error);
-      // Hatayı görmezden gel, kullanıcı yine de ödülünü görebilmeli
-    }
-  }, [timerId, completeGame]);
-
-  // Oyun bitti işleyicisi
-  const handleGameOver = useCallback(() => {
-    if (timerId) {
-      clearInterval(timerId);
-      setTimerId(null);
-    }
-    
-    setIsGameActive(false);
-    setTimeRemaining(0);
-    setIsGameOver(true);
-  }, [timerId]);
+  }, [board, emptyTile, isGameActive, size, makeMove, handleGameCompletion]);
 
   // Oyunu sıfırla
   const resetGame = useCallback(() => {
