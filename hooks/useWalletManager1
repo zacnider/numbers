@@ -1,26 +1,38 @@
 // hooks/useWalletManager.ts
-// Mevcut SlidingPuzzleGame kontratını kullanarak cihazlar arası cüzdan erişimi
+// Blockchain entegrasyonu için güncellendi (Parça 1)
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useWalletClient, useSendTransaction } from 'wagmi';
 import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
 import { ethers } from 'ethers';
-import { parseEther } from 'viem';
+import { parseEther, formatEther } from 'viem';
 import { monadTestnet } from 'wagmi/chains';
 import { MAX_WALLETS } from '@/lib/constants';
-import { Wallet, Transaction } from '@/types';
 import { useContract } from './useContract';
 
-// Cüzdan şifreleme fonksiyonları (basit uygulama için - gerçek uygulamada daha güçlü şifreleme kullanın)
+// Wallet ve Transaction için interface tanımlamaları
+interface Wallet {
+  address: string;
+  privateKey: string;
+  mnemonic: string;
+}
+
+interface Transaction {
+  hash: string;
+  type: 'Deposit' | 'Withdraw';
+  status: 'pending' | 'confirmed' | 'failed';
+  amount: string;
+  timestamp: number;
+}
+
+// Basit şifreleme fonksiyonları
 const encryptWalletData = (data: string, userAddress: string): string => {
   try {
-    // Not: Bu basit bir uygulamadır, gerçek projede daha güvenli bir yöntem kullanın
-    // Bu örnek, şifreleme kütüphanesi olmadan basit bir şifreleme yapıyor
-    const key = userAddress.slice(2, 10); // Adresten 8 karakter anahtar
+    // Basit şifreleme algoritması
+    const key = userAddress.slice(2, 10);
     let result = '';
     for (let i = 0; i < data.length; i++) {
-      const charCode = data.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-      result += String.fromCharCode(charCode);
+      result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
     }
     return Buffer.from(result).toString('base64');
   } catch (error) {
@@ -31,13 +43,12 @@ const encryptWalletData = (data: string, userAddress: string): string => {
 
 const decryptWalletData = (encryptedData: string, userAddress: string): string => {
   try {
-    // Şifrelenmiş veriyi çöz
+    // Basit şifre çözme algoritması
     const key = userAddress.slice(2, 10);
-    const buffer = Buffer.from(encryptedData, 'base64').toString();
+    const data = Buffer.from(encryptedData, 'base64').toString();
     let result = '';
-    for (let i = 0; i < buffer.length; i++) {
-      const charCode = buffer.charCodeAt(i) ^ key.charCodeAt(i % key.length);
-      result += String.fromCharCode(charCode);
+    for (let i = 0; i < data.length; i++) {
+      result += String.fromCharCode(data.charCodeAt(i) ^ key.charCodeAt(i % key.length));
     }
     return result;
   } catch (error) {
@@ -46,7 +57,40 @@ const decryptWalletData = (encryptedData: string, userAddress: string): string =
   }
 };
 
-export const useWalletManager = () => {
+// Hook'un dönüş tipini tanımlama
+interface WalletManagerReturn {
+  // Cüzdan durumu
+  wallets: Wallet[];
+  currentWallet: Wallet | null;
+  walletBalance: string;
+  transactions: Transaction[];
+  isLoadingWallets: boolean;
+
+  // Cüzdan yönetimi
+  createWallet: () => Promise<Wallet>;
+  selectWallet: (walletAddress: string) => Promise<void>;
+  deleteWallet: (walletAddress: string) => Promise<void>;
+
+  // Para işlemleri
+  depositFunds: (amount: string) => Promise<string>;
+  withdrawFunds: (amount: string) => Promise<string>;
+
+  // Bağlantı durumu
+  isConnectedToMetaMask: boolean;
+  metamaskAddress: string | null;
+  chainId: number | undefined;
+
+  // Bağlantı işlemleri
+  connectMetaMask: () => Promise<boolean>;
+  disconnectMetaMask: () => void;
+
+  // Oyun işlevleri
+  startGame: () => Promise<boolean>;
+  makeMove: () => Promise<boolean>;
+  completeGame: () => Promise<boolean>;
+}
+
+export const useWalletManager = (): WalletManagerReturn => {
   // Warpcast/MetaMask bağlantı durumu
   const { address, chainId, isConnected } = useAccount();
   const { connect } = useConnect();
@@ -57,8 +101,15 @@ export const useWalletManager = () => {
   
   // Kontrat fonksiyonları
   const { 
-    getWalletCount, getAllWallets, getWallet, 
-    createWalletOnChain, removeWalletOnChain, setActiveWalletOnChain 
+    startGame: startGameContract, 
+    makeMove: makeMoveContract, 
+    completeGame: completeGameContract,
+    getWalletCount, 
+    getAllWallets, 
+    getWallet, 
+    createWalletOnChain, 
+    removeWalletOnChain, 
+    setActiveWalletOnChain 
   } = useContract();
   
   // Cüzdan durumu
@@ -66,20 +117,10 @@ export const useWalletManager = () => {
   const [currentWallet, setCurrentWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletBalance, setWalletBalance] = useState<string>('0');
-  const [isLoadingWallets, setIsLoadingWallets] = useState(false);
-  
-  // İşlem hash'lerini korumak için state
-  const [pendingTransactionMap, setPendingTransactionMap] = useState<Record<string, { 
-    realHash?: string, 
-    type: string, 
-    amount: string 
-  }>>({});
-  
-  // Bakiye referansı
-  const previousBalanceRef = useRef(walletBalance);
+  const [isLoadingWallets, setIsLoadingWallets] = useState<boolean>(false);
   
   // Blockchain'den cüzdanları yükle
-  const loadWalletsFromBlockchain = useCallback(async () => {
+  const loadWalletsFromBlockchain = useCallback(async (): Promise<void> => {
     if (!isConnected || !address) return;
     
     setIsLoadingWallets(true);
@@ -87,8 +128,32 @@ export const useWalletManager = () => {
     try {
       // Kontrat'tan cüzdan sayısını al
       const count = await getWalletCount();
+      console.log(`Blockchain'de ${count} cüzdan bulundu`);
       
-      // Cüzdan yoksa, durumu temizle
+      // Hiç cüzdan yoksa ve yerel cüzdanlar varsa, yerel cüzdanları blockchain'e kaydet
+      if (count === 0 && wallets.length > 0) {
+        console.log('Yerel cüzdanları blockchain\'e kaydediyorum...');
+        
+        // İlk cüzdandan işlem yapabilmek için
+        const firstWallet = wallets[0];
+        
+        for (const wallet of wallets) {
+          const encryptedPrivateKey = encryptWalletData(wallet.privateKey, address);
+          const encryptedMnemonic = encryptWalletData(wallet.mnemonic, address);
+          
+          await createWalletOnChain(encryptedPrivateKey, encryptedMnemonic, firstWallet.privateKey);
+        }
+        
+        // İlk cüzdanı aktif olarak ayarla
+        if (wallets.length > 0) {
+          await setActiveWalletOnChain(0, wallets[0].privateKey);
+        }
+        
+        setIsLoadingWallets(false);
+        return;
+      }
+      
+      // Cüzdan yoksa ve yerel de yoksa, durumu temizle
       if (count === 0) {
         setWallets([]);
         setCurrentWallet(null);
@@ -96,7 +161,7 @@ export const useWalletManager = () => {
         return;
       }
       
-      // Cüzdan verilerini al
+      // Blockchain'den cüzdan verilerini al
       const walletData = await getAllWallets();
       const [encryptedPrivateKeys, encryptedMnemonics, activeStates] = walletData;
       
@@ -129,9 +194,10 @@ export const useWalletManager = () => {
         }
       }
       
+      // Cüzdanları güncelle
       setWallets(loadedWallets);
       
-      // Aktif cüzdan belirle, aktif yoksa ilk cüzdanı seç
+      // Aktif cüzdan belirle
       if (activeWallet) {
         setCurrentWallet(activeWallet);
       } else if (loadedWallets.length > 0) {
@@ -145,65 +211,78 @@ export const useWalletManager = () => {
     } finally {
       setIsLoadingWallets(false);
     }
-  }, [address, isConnected, getWalletCount, getAllWallets]);
-  
-  // İşlemleri yerel depolamadan yükle
+  }, [address, isConnected, getWalletCount, getAllWallets, createWalletOnChain, setActiveWalletOnChain, wallets]);
+
+  // Cüzdanları yerel depolamadan yükle
   useEffect(() => {
-    if (typeof window !== 'undefined' && address) {
-      const storageKey = `slidingPuzzleTransactions_${address}`;
-      const savedTransactions = localStorage.getItem(storageKey);
-      const savedPendingMap = localStorage.getItem(`${storageKey}_pendingMap`);
+    if (typeof window !== 'undefined') {
+      const savedWallets = localStorage.getItem('slidingPuzzleWallets');
+      const savedCurrentWallet = localStorage.getItem('slidingPuzzleCurrentWallet');
+      const savedTransactions = localStorage.getItem('slidingPuzzleTransactions');
+      
+      if (savedWallets) {
+        try {
+          const parsedWallets = JSON.parse(savedWallets) as Wallet[];
+          setWallets(parsedWallets);
+        } catch (error) {
+          console.error('Cüzdanlar yüklenemedi:', error);
+        }
+      }
+      
+      if (savedCurrentWallet && savedWallets) {
+        try {
+          const parsedWallets = JSON.parse(savedWallets) as Wallet[];
+          const wallet = parsedWallets.find((w) => w.address === savedCurrentWallet);
+          if (wallet) {
+            setCurrentWallet(wallet);
+          }
+        } catch (error) {
+          console.error('Mevcut cüzdan yüklenemedi:', error);
+        }
+      }
       
       if (savedTransactions) {
         try {
-          const parsedTransactions = JSON.parse(savedTransactions);
+          const parsedTransactions = JSON.parse(savedTransactions) as Transaction[];
           setTransactions(parsedTransactions);
         } catch (error) {
           console.error('İşlemler yüklenemedi:', error);
         }
       }
-      
-      if (savedPendingMap) {
-        try {
-          const parsedPendingMap = JSON.parse(savedPendingMap);
-          setPendingTransactionMap(parsedPendingMap);
-        } catch (error) {
-          console.error('Bekleyen işlem haritası yüklenemedi:', error);
-        }
-      }
     }
-  }, [address]);
+  }, []);
   
-  // Kullanıcı bağlandığında cüzdanları yükle
+  // Kullanıcı bağlandığında cüzdanları blockchain'den yükle
   useEffect(() => {
     if (isConnected && address) {
       loadWalletsFromBlockchain();
-    } else {
-      // Bağlantı kesildiğinde cüzdanları temizle
-      setWallets([]);
-      setCurrentWallet(null);
     }
   }, [isConnected, address, loadWalletsFromBlockchain]);
   
+  // Cüzdanları yerel depolamaya kaydet
+  useEffect(() => {
+    if (typeof window !== 'undefined' && wallets.length > 0) {
+      localStorage.setItem('slidingPuzzleWallets', JSON.stringify(wallets));
+    }
+  }, [wallets]);
+  
+  // Mevcut cüzdanı yerel depolamaya kaydet
+  useEffect(() => {
+    if (typeof window !== 'undefined' && currentWallet) {
+      localStorage.setItem('slidingPuzzleCurrentWallet', currentWallet.address);
+    }
+  }, [currentWallet]);
+  
   // İşlemleri yerel depolamaya kaydet
   useEffect(() => {
-    if (typeof window !== 'undefined' && address && transactions.length > 0) {
-      const storageKey = `slidingPuzzleTransactions_${address}`;
-      localStorage.setItem(storageKey, JSON.stringify(transactions));
+    if (typeof window !== 'undefined' && transactions.length > 0) {
+      localStorage.setItem('slidingPuzzleTransactions', JSON.stringify(transactions));
     }
-  }, [transactions, address]);
-  
-  // Bekleyen işlem haritasını kaydet
-  useEffect(() => {
-    if (typeof window !== 'undefined' && address && Object.keys(pendingTransactionMap).length > 0) {
-      const storageKey = `slidingPuzzleTransactions_${address}_pendingMap`;
-      localStorage.setItem(storageKey, JSON.stringify(pendingTransactionMap));
-    }
-  }, [pendingTransactionMap, address]);
+  }, [transactions]);
   
   // Bakiyeyi güncelle
   useEffect(() => {
-    const updateBalance = async () => {
+    const updateBalance = async (): Promise<void> => {
       if (!currentWallet) {
         setWalletBalance('0');
         return;
@@ -241,7 +320,7 @@ export const useWalletManager = () => {
   }, [isConnected, chainId, switchChain]);
   
   // Warpcast/MetaMask cüzdanını bağla ve otomatik olarak Monad Test ağına geçiş yap
-  const connectMetaMask = useCallback(async () => {
+  const connectMetaMask = useCallback(async (): Promise<boolean> => {
     if (isConnected) {
       // Zaten bağlıysa, sadece ağı kontrol edip gerekirse değiştir
       if (chainId !== monadTestnet.id) {
@@ -269,22 +348,15 @@ export const useWalletManager = () => {
         await switchChain({ chainId: monadTestnet.id });
       }
       
-      // Cüzdanları yükle
-      await loadWalletsFromBlockchain();
-      
       return true;
     } catch (error) {
       console.error('Warpcast bağlantısı veya ağ değişimi sırasında hata:', error);
       return false;
     }
-  }, [isConnected, connect, chainId, switchChain, loadWalletsFromBlockchain]);
+  }, [isConnected, connect, chainId, switchChain]);
   
-  // Yeni cüzdan oluştur
-  const createWallet = useCallback(async () => {
-    if (!isConnected || !address) {
-      throw new Error('Warpcast cüzdanı bağlı değil');
-    }
-    
+  // Yeni cüzdan oluştur - hem yerel hem blockchain'e kaydet
+  const createWallet = useCallback(async (): Promise<Wallet> => {
     if (wallets.length >= MAX_WALLETS) {
       throw new Error(`Maksimum cüzdan sayısına (${MAX_WALLETS}) ulaşıldı`);
     }
@@ -296,86 +368,120 @@ export const useWalletManager = () => {
       // Mnemonic'ten cüzdan oluştur
       const wallet = ethers.Wallet.fromMnemonic(mnemonic);
       
-      const newWallet = {
+      const newWallet: Wallet = {
         address: wallet.address,
         privateKey: wallet.privateKey,
         mnemonic
       };
       
-      // Cüzdan verilerini şifrele
-      const encryptedPrivateKey = encryptWalletData(newWallet.privateKey, address);
-      const encryptedMnemonic = encryptWalletData(newWallet.mnemonic, address);
+      // Cüzdanlar listesine ekle
+      const updatedWallets = [...wallets, newWallet];
+      setWallets(updatedWallets);
       
-      // Kontrata şifrelenmiş cüzdan verilerini kaydet
-      await createWalletOnChain(encryptedPrivateKey, encryptedMnemonic);
+      // İlk cüzdansa, mevcut olarak ayarla
+      if (updatedWallets.length === 1) {
+        setCurrentWallet(newWallet);
+      }
       
-      // Cüzdanları yeniden yükle
-      await loadWalletsFromBlockchain();
+      // Blockchain'e kaydet (arka planda)
+      if (isConnected && address) {
+        (async () => {
+          try {
+            // Şifrele
+            const encryptedPrivateKey = encryptWalletData(newWallet.privateKey, address);
+            const encryptedMnemonic = encryptWalletData(newWallet.mnemonic, address);
+            
+            // İlk cüzdan yoksa, kendisinden işlem yapamayız
+            // Varsa mevcut cüzdanla işlem yap
+            const signerWallet = updatedWallets.length > 1 ? updatedWallets[0] : newWallet;
+            
+            // Blockchain'e kaydet
+            await createWalletOnChain(encryptedPrivateKey, encryptedMnemonic, signerWallet.privateKey);
+            
+            // İlk cüzdansa, aktif yap
+            if (updatedWallets.length === 1) {
+              await setActiveWalletOnChain(0, newWallet.privateKey);
+            }
+            
+            console.log('Cüzdan blockchain\'e kaydedildi.');
+          } catch (error) {
+            console.error('Cüzdan blockchain\'e kaydedilemedi (ama yerel depolamada):', error);
+          }
+        })();
+      }
       
       return newWallet;
     } catch (error) {
       console.error('Cüzdan oluşturulamadı:', error);
       throw error;
     }
-  }, [isConnected, address, wallets.length, createWalletOnChain, loadWalletsFromBlockchain]);
+  }, [wallets, isConnected, address, createWalletOnChain, setActiveWalletOnChain]);
   
-  // Cüzdan seç
-  const selectWallet = useCallback(async (walletAddress: string) => {
+  // Cüzdan seç - yerel ve blockchain
+  const selectWallet = useCallback(async (walletAddress: string): Promise<void> => {
     const walletIndex = wallets.findIndex(w => w.address === walletAddress);
     if (walletIndex === -1) {
       throw new Error('Cüzdan bulunamadı');
     }
     
-    try {
-      // Kontrata aktif cüzdan bilgisini kaydet
-      await setActiveWalletOnChain(walletIndex);
-      
-      // Cüzdanları yeniden yükle
-      await loadWalletsFromBlockchain();
-      
-    } catch (error) {
-      console.error('Cüzdan seçilemedi:', error);
-      throw error;
-    }
-  }, [wallets, setActiveWalletOnChain, loadWalletsFromBlockchain]);
-  
-  // Cüzdan sil
-  const deleteWallet = useCallback(async (walletAddress: string) => {
-    const walletIndex = wallets.findIndex(w => w.address === walletAddress);
-    if (walletIndex === -1) {
-      throw new Error('Cüzdan bulunamadı');
-    }
+    // Yerel state'i güncelle
+    const wallet = wallets[walletIndex];
+    setCurrentWallet(wallet);
     
-    try {
-      // Kontrata cüzdan silme isteği gönder
-      await removeWalletOnChain(walletIndex);
-      
-      // Cüzdanları yeniden yükle
-      await loadWalletsFromBlockchain();
-      
-    } catch (error) {
-      console.error('Cüzdan silinemedi:', error);
-      throw error;
-    }
-  }, [wallets, removeWalletOnChain, loadWalletsFromBlockchain]);
-  
-  // İşlemleri yönetme fonksiyonları
-  const addTransaction = useCallback((tx: Transaction, pendingInfo?: { realHash?: string }) => {
-    setTransactions(prev => [tx, ...prev].slice(0, 20)); // Maks 20 işlem tut
-    
-    if (pendingInfo) {
-      setPendingTransactionMap(prev => ({
-        ...prev,
-        [tx.hash]: {
-          realHash: pendingInfo.realHash,
-          type: tx.type,
-          amount: tx.amount || '0'
+    // Blockchain'de de güncelle (arka planda)
+    if (isConnected && address) {
+      (async () => {
+        try {
+          await setActiveWalletOnChain(walletIndex, wallet.privateKey);
+          console.log('Aktif cüzdan blockchain\'de güncellendi.');
+        } catch (error) {
+          console.error('Aktif cüzdan blockchain\'de güncellenemedi:', error);
         }
-      }));
+      })();
     }
-  }, []);
+  }, [wallets, isConnected, address, setActiveWalletOnChain]);
   
-  const updateTransactionStatus = useCallback((hash: string, status: string) => {
+  // Cüzdan sil - yerel ve blockchain
+  const deleteWallet = useCallback(async (walletAddress: string): Promise<void> => {
+    const walletIndex = wallets.findIndex(w => w.address === walletAddress);
+    if (walletIndex === -1) {
+      throw new Error('Cüzdan bulunamadı');
+    }
+    
+    // Yerel değişiklikleri yap
+    const deletedWallet = wallets[walletIndex];
+    const updatedWallets = wallets.filter(w => w.address !== walletAddress);
+    
+    setWallets(updatedWallets);
+    
+    // Silinen cüzdan mevcut cüzdansa, başka birini seç veya null yap
+    if (currentWallet && currentWallet.address === walletAddress) {
+      setCurrentWallet(updatedWallets.length > 0 ? updatedWallets[0] : null);
+    }
+    
+    // Blockchain'den de sil (arka planda)
+    if (isConnected && address && updatedWallets.length > 0) {
+      (async () => {
+        try {
+          // Kalan cüzdanlardan birini kullan
+          const signerWallet = updatedWallets[0];
+          
+          await removeWalletOnChain(walletIndex, signerWallet.privateKey);
+          console.log('Cüzdan blockchain\'den silindi.');
+          
+          // Eğer silinen cüzdan aktifse, yeni aktif cüzdan ata
+          if (currentWallet && currentWallet.address === walletAddress) {
+            await setActiveWalletOnChain(0, signerWallet.privateKey);
+          }
+        } catch (error) {
+          console.error('Cüzdan blockchain\'den silinemedi:', error);
+        }
+      })();
+    }
+  }, [wallets, currentWallet, isConnected, address, removeWalletOnChain, setActiveWalletOnChain]);
+  
+  // İşlem durumunu güncelle
+  const updateTransactionStatus = useCallback((hash: string, status: 'pending' | 'confirmed' | 'failed'): void => {
     setTransactions(prev => 
       prev.map(tx => 
         tx.hash === hash ? { ...tx, status } : tx
@@ -383,36 +489,27 @@ export const useWalletManager = () => {
     );
   }, []);
   
-  const updateTransactionHash = useCallback((tempHash: string, realHash: string) => {
-    // İşlem haritasını güncelle
-    setPendingTransactionMap(prev => {
-      const updatedMap = { ...prev };
-      if (updatedMap[tempHash]) {
-        updatedMap[tempHash].realHash = realHash;
-      }
-      return updatedMap;
-    });
-    
-    // İşlem listesini güncelle
+  // İşlemi güncelle
+  const updateTransaction = useCallback((oldHash: string, updates: Partial<Transaction>): void => {
     setTransactions(prev => 
       prev.map(tx => 
-        tx.hash === tempHash ? { ...tx, hash: realHash } : tx
+        tx.hash === oldHash ? { ...tx, ...updates } : tx
       )
     );
   }, []);
   
   // Para yatır
-  const depositFunds = useCallback(async (amount: string) => {
+  const depositFunds = useCallback(async (amount: string): Promise<string> => {
     if (!isConnected || !address || !currentWallet) {
       throw new Error('Cüzdan bağlı değil');
     }
     
     try {
       // Geçici bir işlem hash'i oluştur
-      const tempHash = `temp_${Date.now()}_${Math.random().toString(16).substring(2)}`;
+      const tempHash = `0x${Math.random().toString(16).substring(2)}${Date.now().toString(16)}`;
       
       // İşlemi listeye ekle
-      const newTransaction = {
+      const newTransaction: Transaction = {
         hash: tempHash,
         type: 'Deposit',
         status: 'pending',
@@ -420,66 +517,41 @@ export const useWalletManager = () => {
         timestamp: Date.now()
       };
       
-      addTransaction(newTransaction);
+      setTransactions(prev => [newTransaction, ...prev].slice(0, 20)); // Maks 20 işlem tut
       
-      // Asenkron olarak işlemi gönder ve izle
-      (async () => {
-        try {
-          // Provider ve signer oluştur
-          if (window.ethereum) {
-            const provider = new ethers.providers.Web3Provider(window.ethereum);
-            const signer = provider.getSigner();
-            
-            // İşlemi gönder
-            const tx = await signer.sendTransaction({
-              to: currentWallet.address,
-              value: ethers.utils.parseEther(amount)
-            });
-            
-            console.log('Deposit transaction sent:', tx.hash);
-            
-            // Gerçek hash ile güncelle
-            updateTransactionHash(tempHash, tx.hash);
-            
-            // İşlem onayını bekle
-            const receipt = await tx.wait();
-            
-            // İşlem durumunu güncelle
-            updateTransactionStatus(tx.hash, receipt.status ? 'confirmed' : 'failed');
-            
-          } else {
-            // Fallback - Wagmi sendTransaction kullan
-            sendTransaction({
-              to: currentWallet.address as `0x${string}`,
-              value: parseEther(amount),
-            });
-          }
-        } catch (sendError) {
-          console.error('İşlem gönderimi sırasında hata:', sendError);
-          // İşlem durumunu güncelle
-          updateTransactionStatus(tempHash, 'failed');
-        }
-      })();
+      // Asenkron olarak işlemi gönder, sonucu beklemeden
+      try {
+        // sendTransaction'ı çağır
+        sendTransaction({
+          to: currentWallet.address,
+          value: parseEther(amount),
+        });
+      } catch (sendError) {
+        console.error('İşlem gönderimi sırasında hata:', sendError);
+        // İşlem durumunu güncelle
+        updateTransactionStatus(tempHash, 'failed');
+        throw sendError;
+      }
       
       return tempHash;
     } catch (error) {
       console.error('Yatırma işlemi başarısız:', error);
       throw error;
     }
-  }, [isConnected, address, currentWallet, addTransaction, updateTransactionHash, updateTransactionStatus, sendTransaction]);
+  }, [isConnected, address, currentWallet, sendTransaction, updateTransactionStatus]);
   
   // Para çek
-  const withdrawFunds = useCallback(async (amount: string) => {
+  const withdrawFunds = useCallback(async (amount: string): Promise<string> => {
     if (!isConnected || !address || !currentWallet) {
       throw new Error('Cüzdan bağlı değil');
     }
     
     try {
       // Geçici bir işlem hash'i oluştur
-      const tempHash = `temp_${Date.now()}_${Math.random().toString(16).substring(2)}`;
+      const tempHash = `0x${Math.random().toString(16).substring(2)}${Date.now().toString(16)}`;
       
       // İşlemi listeye ekle
-      const newTransaction = {
+      const newTransaction: Transaction = {
         hash: tempHash,
         type: 'Withdraw',
         status: 'pending',
@@ -487,7 +559,7 @@ export const useWalletManager = () => {
         timestamp: Date.now()
       };
       
-      addTransaction(newTransaction);
+      setTransactions(prev => [newTransaction, ...prev].slice(0, 20)); // Maks 20 işlem tut
       
       // Arka planda işlemi gönder
       (async () => {
@@ -501,16 +573,11 @@ export const useWalletManager = () => {
             value: ethers.utils.parseEther(amount),
           });
           
-          console.log('Withdraw transaction sent:', tx.hash);
-          
-          // Gerçek hash ile güncelle
-          updateTransactionHash(tempHash, tx.hash);
-          
-          // İşlem onayını bekle
-          const receipt = await tx.wait();
-          
-          // İşlem durumunu güncelle
-          updateTransactionStatus(tx.hash, receipt.status ? 'confirmed' : 'failed');
+          // Gerçek işlem hash'i ile güncelle
+          updateTransaction(tempHash, {
+            hash: tx.hash,
+            status: 'pending'
+          });
           
         } catch (error) {
           console.error('Çekme işlemi başarısız:', error);
@@ -524,13 +591,11 @@ export const useWalletManager = () => {
       console.error('Çekme işlemi başarısız:', error);
       throw error;
     }
-  }, [isConnected, address, currentWallet, addTransaction, updateTransactionHash, updateTransactionStatus]);
-  
+  }, [isConnected, address, currentWallet, updateTransaction, updateTransactionStatus]);
+
   // Tüm işlemler için durumları kontrol et
   useEffect(() => {
-    if (!transactions.length) return;
-    
-    const checkTransactionStatuses = async () => {
+    const checkTransactionStatuses = async (): Promise<void> => {
       const pendingTransactions = transactions.filter(tx => tx.status === 'pending');
       
       if (pendingTransactions.length === 0) return;
@@ -539,29 +604,16 @@ export const useWalletManager = () => {
       
       for (const tx of pendingTransactions) {
         try {
-          // Geçici hash'se, bekleyen haritada gerçek hash var mı kontrol et
-          const pendingInfo = pendingTransactionMap[tx.hash];
+          // Geçici hash'ler için kontrolü atla
+          if (tx.hash.includes('random')) continue;
           
-          // Gerçek hash varsa, onunla kontrol et
-          if (pendingInfo && pendingInfo.realHash) {
-            const receipt = await provider.getTransactionReceipt(pendingInfo.realHash);
-            
-            if (receipt) {
-              // Önce hash'i güncelle (eğer hala geçici hash kullanıyorsa)
-              if (tx.hash !== pendingInfo.realHash) {
-                updateTransactionHash(tx.hash, pendingInfo.realHash);
-              }
-              
-              // Sonra durumu güncelle
-              updateTransactionStatus(
-                pendingInfo.realHash, 
-                receipt.status ? 'confirmed' : 'failed'
-              );
-            }
-          }
-          // Geçici hash ise ve 5 dakikadan eskiyse, başarısız olarak işaretle
-          else if (tx.hash.startsWith('temp_') && (Date.now() - tx.timestamp > 5 * 60 * 1000)) {
-            updateTransactionStatus(tx.hash, 'failed');
+          const receipt = await provider.getTransactionReceipt(tx.hash);
+          
+          if (receipt) {
+            updateTransactionStatus(
+              tx.hash, 
+              receipt.status ? 'confirmed' : 'failed'
+            );
           }
         } catch (error) {
           console.error(`İşlem durumu kontrol edilemedi ${tx.hash}:`, error);
@@ -574,43 +626,84 @@ export const useWalletManager = () => {
     // Her 15 saniyede bir kontrol et
     const interval = setInterval(checkTransactionStatuses, 15000);
     return () => clearInterval(interval);
-  }, [transactions, pendingTransactionMap, updateTransactionStatus, updateTransactionHash]);
-  
-  // Bakiye değişimini izleyerek işlem durumlarını güncelle
-  useEffect(() => {
-    // Bakiye değiştiyse, bekleyen işlemleri kontrol et
-    if (walletBalance !== previousBalanceRef.current && currentWallet) {
-      const pendingDeposits = transactions.filter(tx => 
-        tx.status === 'pending' && tx.type === 'Deposit'
-      );
-      
-      const pendingWithdraws = transactions.filter(tx => 
-        tx.status === 'pending' && tx.type === 'Withdraw'
-      );
-      
-      // Bakiye artmışsa, bekleyen para yatırma işlemlerinden birini onayla
-      if (parseFloat(walletBalance) > parseFloat(previousBalanceRef.current) && pendingDeposits.length > 0) {
-        // En eski bekleyen para yatırma işlemini onayla
-        const oldestPendingDeposit = pendingDeposits[pendingDeposits.length - 1];
-        console.log(`Bakiye arttı, en eski bekleyen para yatırma işlemi onaylandı: ${oldestPendingDeposit.hash}`);
-        updateTransactionStatus(oldestPendingDeposit.hash, 'confirmed');
-      }
-      
-      // Bakiye azalmışsa, bekleyen para çekme işlemlerinden birini onayla
-      if (parseFloat(walletBalance) < parseFloat(previousBalanceRef.current) && pendingWithdraws.length > 0) {
-        // En eski bekleyen para çekme işlemini onayla
-        const oldestPendingWithdraw = pendingWithdraws[pendingWithdraws.length - 1];
-        console.log(`Bakiye azaldı, en eski bekleyen para çekme işlemi onaylandı: ${oldestPendingWithdraw.hash}`);
-        updateTransactionStatus(oldestPendingWithdraw.hash, 'confirmed');
-      }
+  }, [transactions, updateTransactionStatus]);
+
+  // Oyun işlevleri - Blockchain çağrılarını arka planda yap
+  const startGame = useCallback(async (): Promise<boolean> => {
+    if (!currentWallet || parseFloat(walletBalance) === 0) {
+      alert("You need a wallet with MON tokens to play the game");
+      return false;
     }
     
-    // Mevcut bakiyeyi sakla
-    previousBalanceRef.current = walletBalance;
-  }, [walletBalance, transactions, currentWallet, updateTransactionStatus]);
+    try {
+      // Blockchain'de oyunu arka planda başlat
+      (async () => {
+        try {
+          await startGameContract(currentWallet.privateKey);
+          console.log('Oyun blockchain\'de başlatıldı');
+        } catch (error) {
+          console.error('Oyun blockchain\'de başlatılamadı:', error);
+        }
+      })();
+      
+      // Başarılı dönüş, UI oyun durumunu hemen güncelleyebilir
+      return true;
+    } catch (error) {
+      console.error('Oyun başlatılamadı:', error);
+      throw error;
+    }
+  }, [currentWallet, walletBalance, startGameContract]);
+  
+  const makeGameMove = useCallback(async (): Promise<boolean> => {
+    if (!currentWallet) {
+      throw new Error('Cüzdan bağlı değil');
+    }
+    
+    try {
+      // Blockchain'de hamleyi arka planda yap
+      (async () => {
+        try {
+          await makeMoveContract(currentWallet.privateKey);
+          console.log('Hamle blockchain\'de kaydedildi');
+        } catch (error) {
+          console.error('Hamle blockchain\'de kaydedilemedi:', error);
+        }
+      })();
+      
+      // Başarılı dönüş, UI oyun durumunu hemen güncelleyebilir
+      return true;
+    } catch (error) {
+      console.error('Hamle yapılamadı:', error);
+      throw error;
+    }
+  }, [currentWallet, makeMoveContract]);
+  
+  const completeGame = useCallback(async (): Promise<boolean> => {
+    if (!currentWallet) {
+      throw new Error('Cüzdan bağlı değil');
+    }
+    
+    try {
+      // Blockchain'de oyun tamamlama işlemini arka planda yap
+      (async () => {
+        try {
+          await completeGameContract(currentWallet.privateKey);
+          console.log('Oyun tamamlama blockchain\'de kaydedildi');
+        } catch (error) {
+          console.error('Oyun tamamlama blockchain\'de kaydedilemedi:', error);
+        }
+      })();
+      
+      // Başarılı dönüş, UI oyun durumunu hemen güncelleyebilir
+      return true;
+    } catch (error) {
+      console.error('Oyun tamamlanamadı:', error);
+      throw error;
+    }
+  }, [currentWallet, completeGameContract]);
 
   // metamaskAddress tipini string | null olarak döndür
-  const formattedMetamaskAddress = address ? address as string : null;
+  const formattedMetamaskAddress = address ? address : null;
 
   return {
     // Cüzdan durumu
@@ -636,6 +729,11 @@ export const useWalletManager = () => {
     
     // Bağlantı işlemleri
     connectMetaMask,
-    disconnectMetaMask: disconnect
+    disconnectMetaMask: disconnect,
+    
+    // Oyun işlevleri
+    startGame,
+    makeMove: makeGameMove,
+    completeGame
   };
 };
