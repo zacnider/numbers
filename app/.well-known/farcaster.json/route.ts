@@ -6,26 +6,24 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const appUrl = process.env.NEXT_PUBLIC_URL;
 
-  const farcasterConfig = {
-   
-    accountAssociation: {
-      "header": "",
-      "payload": "",
-      "signature": ""
-    },
-    frame: {
-      version: "1",
-      name: "Monad Sliding Puzzle",
-      iconUrl: `${appUrl}/images/icon.png`, 
-      homeUrl: `${appUrl}`, // Varsayılan açılış URL'i
-      imageUrl: `${appUrl}/images/feed.png`, 
-      screenshotUrls: [], 
-      tags: ["monad", "farcaster", "miniapp", "game", "blockchain", "puzzle"], 
-      primaryCategory: "games",
-      buttonTitle: "Sliding Puzzle Oyna",
-      splashImageUrl: `${appUrl}/images/splash.png`, 
-      splashBackgroundColor: "#4f46e5", 
-    }
+  const farcasterConfig = 
+    {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjQ2OTc5NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDhiNDg3MEYyMzllMzU4OUM1MjFiMTY4NGMwN0M1ZTE4NTUwMjZlQTMifQ",
+    "payload": "eyJkb21haW4iOiJudW1iZXJzbGlkZS5uZXRsaWZ5LmFwcCJ9",
+    "signature": "MHhlM2RmZTg1ZDc5NWNiNzIwMGUxNGVhOWZhMmY3OTcxODgyODM5YjkzOGY2MDc2OGMxMTFhY2E1YzdjNDg4Y2I5MmZmZTRkYzM2NGFhMWViMGUxMWY3MWY5MWUyZjc2YzU4Mzc1NTY4NDliMjE4YzZiNWE4MzdiMmE5ZDdiZmIwODFi"
+  },
+  "frame": {
+    "version": "1",
+    "name": "Example Frame",
+    "iconUrl": "https://numberslide.netlify.app/images/icon.png",
+    "homeUrl": "https://numberslide.netlify.app",
+    "imageUrl": "https://numberslide.netlify.app/images/feed.png",
+    "buttonTitle": "Check this out",
+    "splashImageUrl": "https://numberslide.netlify.app/images/splash.png",
+    "splashBackgroundColor": "#eeccff",
+    "webhookUrl": "https://numberslide.netlify.app/api/webhook"
+  }
   };
 
   return NextResponse.json(farcasterConfig);
