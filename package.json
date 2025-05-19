@@ -1,6 +1,3 @@
-// package.json
-// crypto-js kütüphanesini dependencies arasına ekledik
-
 {
   "name": "monad-sliding-puzzle-miniapp",
   "version": "0.1.0",
