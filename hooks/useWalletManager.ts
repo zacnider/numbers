@@ -1,5 +1,5 @@
 // hooks/useWalletManager.ts
-// Cüzdan yönetimi hook'u
+// Cüzdan yönetimi hook'u - metamaskAddress tipini düzeltildi
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useWalletClient, useSendTransaction } from 'wagmi';
@@ -8,20 +8,7 @@ import { ethers } from 'ethers';
 import { parseEther, formatEther } from 'viem';
 import { monadTestnet } from 'wagmi/chains';
 import { MAX_WALLETS } from '@/lib/constants';
-
-interface Wallet {
-  address: string;
-  privateKey: string;
-  mnemonic: string;
-}
-
-interface Transaction {
-  hash: string;
-  type: string;
-  status: string;
-  amount?: string;
-  timestamp: number;
-}
+import { Wallet, Transaction } from '@/types';
 
 export const useWalletManager = () => {
   // Warpcast/MetaMask bağlantı durumu
@@ -211,8 +198,8 @@ export const useWalletManager = () => {
       // İşlemi listeye ekle
       const newTransaction = {
         hash: tx.hash,
-        type: 'Yatırma',
-        status: 'beklemede',
+        type: 'Deposit',
+        status: 'pending',
         amount,
         timestamp: Date.now()
       };
@@ -246,8 +233,8 @@ export const useWalletManager = () => {
       // İşlemi listeye ekle
       const newTransaction = {
         hash: tx.hash,
-        type: 'Çekme',
-        status: 'beklemede',
+        type: 'Withdraw',
+        status: 'pending',
         amount,
         timestamp: Date.now()
       };
@@ -273,7 +260,7 @@ export const useWalletManager = () => {
   // Tüm işlemler için durumları kontrol et
   useEffect(() => {
     const checkTransactionStatuses = async () => {
-      const pendingTransactions = transactions.filter(tx => tx.status === 'beklemede');
+      const pendingTransactions = transactions.filter(tx => tx.status === 'pending');
       
       if (pendingTransactions.length === 0) return;
       
@@ -286,7 +273,7 @@ export const useWalletManager = () => {
           if (receipt) {
             updateTransactionStatus(
               tx.hash, 
-              receipt.status ? 'onaylandı' : 'başarısız'
+              receipt.status ? 'confirmed' : 'failed'
             );
           }
         } catch (error) {
@@ -301,6 +288,9 @@ export const useWalletManager = () => {
     const interval = setInterval(checkTransactionStatuses, 15000);
     return () => clearInterval(interval);
   }, [transactions, updateTransactionStatus]);
+
+  // metamaskAddress tipini string | null olarak döndür
+  const formattedMetamaskAddress = address ? address as string : null;
 
   return {
     // Cüzdan durumu
@@ -320,7 +310,7 @@ export const useWalletManager = () => {
     
     // Bağlantı durumu
     isConnectedToMetaMask: isConnected,
-    metamaskAddress: address,
+    metamaskAddress: formattedMetamaskAddress, // Tip düzeltildi: `0x${string} | undefined` yerine string | null
     chainId,
     
     // Bağlantı işlemleri
