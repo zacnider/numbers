@@ -1,28 +1,23 @@
 // hooks/useContract.ts
-// Wagmi v2 API'sına tamamen uyumlu hale getirildi
+// Wagmi v2 API'sına tamamen uyumlu - useWaitForTransactionReceipt düzeltildi
 
 import { useState, useCallback } from 'react';
 import { useWalletManager } from './useWalletManager';
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from '@/lib/contracts';
 import { useAccount, useContractWrite, useWaitForTransactionReceipt } from 'wagmi';
-import { ethers } from 'ethers';
 
 export const useContract = () => {
   const { currentWallet } = useWalletManager();
   const { address } = useAccount();
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Oyun başlatma işlemi
+  // Kontrat yazma işlemleri
   const { writeContractAsync: startGameWriteAsync } = useContractWrite();
-
-  // Hamle yapma işlemi
   const { writeContractAsync: makeMoveWriteAsync } = useContractWrite();
-
-  // Oyun tamamlama işlemi
   const { writeContractAsync: completeGameWriteAsync } = useContractWrite();
-
-  // İşlem durumunu takip etmek için
-  const waitForTransaction = useWaitForTransactionReceipt();
+  
+  // İşlem durumunu takip etmek için - doğru kullanım
+  const { waitForTransactionReceipt } = useWaitForTransactionReceipt();
 
   // Oyun başlatma
   const startGame = useCallback(async () => {
@@ -36,25 +31,25 @@ export const useContract = () => {
 
     try {
       setIsProcessing(true);
-      const result = await startGameWriteAsync({
+      const hash = await startGameWriteAsync({
         abi: CONTRACT_ABI,
         address: CONTRACT_ADDRESS as `0x${string}`,
         functionName: 'startGame',
       });
       
-      // İşlem onayını bekle
-      await waitForTransaction.waitForTransactionReceipt({
-        hash: result,
+      // İşlem onayını bekle - doğru kullanım
+      const receipt = await waitForTransactionReceipt({
+        hash,
       });
       
-      return result;
+      return receipt;
     } catch (error) {
       console.error('Failed to start game:', error);
       throw error;
     } finally {
       setIsProcessing(false);
     }
-  }, [currentWallet, address, isProcessing, startGameWriteAsync, waitForTransaction]);
+  }, [currentWallet, address, isProcessing, startGameWriteAsync, waitForTransactionReceipt]);
 
   // Hamle yapma
   const makeMove = useCallback(async () => {
@@ -63,23 +58,23 @@ export const useContract = () => {
     }
 
     try {
-      const result = await makeMoveWriteAsync({
+      const hash = await makeMoveWriteAsync({
         abi: CONTRACT_ABI,
         address: CONTRACT_ADDRESS as `0x${string}`,
         functionName: 'makeMove',
       });
       
-      // İşlem onayını bekle
-      await waitForTransaction.waitForTransactionReceipt({
-        hash: result,
+      // İşlem onayını bekle - doğru kullanım
+      const receipt = await waitForTransactionReceipt({
+        hash,
       });
       
-      return result;
+      return receipt;
     } catch (error) {
       console.error('Failed to make move:', error);
       throw error;
     }
-  }, [currentWallet, address, makeMoveWriteAsync, waitForTransaction]);
+  }, [currentWallet, address, makeMoveWriteAsync, waitForTransactionReceipt]);
 
   // Oyun tamamlama
   const completeGame = useCallback(async () => {
@@ -93,25 +88,25 @@ export const useContract = () => {
 
     try {
       setIsProcessing(true);
-      const result = await completeGameWriteAsync({
+      const hash = await completeGameWriteAsync({
         abi: CONTRACT_ABI,
         address: CONTRACT_ADDRESS as `0x${string}`,
         functionName: 'completeGame',
       });
       
-      // İşlem onayını bekle
-      await waitForTransaction.waitForTransactionReceipt({
-        hash: result,
+      // İşlem onayını bekle - doğru kullanım
+      const receipt = await waitForTransactionReceipt({
+        hash,
       });
       
-      return result;
+      return receipt;
     } catch (error) {
       console.error('Failed to complete game:', error);
       throw error;
     } finally {
       setIsProcessing(false);
     }
-  }, [currentWallet, address, isProcessing, completeGameWriteAsync, waitForTransaction]);
+  }, [currentWallet, address, isProcessing, completeGameWriteAsync, waitForTransactionReceipt]);
 
   return {
     startGame,
