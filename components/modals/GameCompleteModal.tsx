@@ -93,7 +93,7 @@ export const GameCompleteModal: React.FC<GameCompleteModalProps> = ({
         </div>
         
         <div className="bg-indigo-50 p-4 rounded-md mb-6">
-          <p className="text-sm">Your achievement has been recorded on the blockchain! Your MON reward will be deposited into your wallet once the transaction is confirmed.</p>
+          <p className="text-sm">Your achievement has been recorded on the blockchain! </p>
         </div>
         
         <button
