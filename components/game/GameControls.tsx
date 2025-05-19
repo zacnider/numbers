@@ -32,7 +32,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
         onClick={onStartGame}
         disabled={startButtonDisabled}
       >
-        Yeni Oyun Başlat
+        Start Game
       </button>
       
       <button
@@ -44,7 +44,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
         onClick={onHint}
         disabled={hintButtonDisabled}
       >
-        İpucu
+        Hint
       </button>
     </div>
   );
