@@ -6,7 +6,7 @@
   },
   "frame": {
     "version": "1",
-    "name": "Example Frame",
+    "name": "Number Sliding",
     "iconUrl": "https://numberslide.netlify.app/images/icon.png",
     "homeUrl": "https://numberslide.netlify.app",
     "imageUrl": "https://numberslide.netlify.app/images/feed.png",
