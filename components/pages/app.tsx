@@ -1,5 +1,5 @@
 // components/pages/app.tsx
-// Ana uygulama bileşeni
+// Tip hatasını düzelten versiyon
 
 "use client";
 
@@ -104,7 +104,7 @@ export default function App() {
     <SafeAreaContainer insets={context?.client?.safeAreaInsets}>
       <div className="w-full max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-indigo-600 mb-2">Number Sliding Puzzle</h1>
-        <p className="text-center text-gray-500 mb-6">Monad Blockchain Üzerinde</p>
+        <p className="text-center text-gray-500 mb-6">Powered by Monad Blockchain</p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Sol sütun: Cüzdan */}
@@ -118,7 +118,8 @@ export default function App() {
               onViewDetails={() => setShowWalletDetailsModal(true)}
               onConnectMetaMask={connectMetaMask}
               isConnectedToMetaMask={isConnectedToMetaMask}
-              metamaskAddress={metamaskAddress}
+              // Tip hatası düzeltme: metamaskAddress string | null tipine dönüştürüldü
+              metamaskAddress={metamaskAddress ? metamaskAddress as string : null}
             />
             
             <WalletActions
@@ -135,14 +136,14 @@ export default function App() {
           <div className="md:col-span-2 bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between mb-4">
               <div>
-                <div className="text-sm font-medium">Hamleler: <span className="font-bold">{moves}</span></div>
-                <div className="text-sm font-medium">Kalan Süre: <span className={`font-bold ${timeRemaining < 60000 ? 'text-red-500' : ''}`}>
+                <div className="text-sm font-medium">Moves: <span className="font-bold">{moves}</span></div>
+                <div className="text-sm font-medium">Time Left: <span className={`font-bold ${timeRemaining < 60000 ? 'text-red-500' : ''}`}>
                   {formatTime(timeRemaining)}
                 </span></div>
               </div>
               <div className="text-sm text-right">
-                <div>Ağ: <span className="font-medium">Monad Testnet</span></div>
-                {currentWallet && <div className="text-xs truncate max-w-[180px]">Cüzdan: {currentWallet.address.substring(0, 6)}...{currentWallet.address.substring(38)}</div>}
+                <div>Network: <span className="font-medium">Monad Testnet</span></div>
+                {currentWallet && <div className="text-xs truncate max-w-[180px]">Wallet: {currentWallet.address.substring(0, 6)}...{currentWallet.address.substring(38)}</div>}
               </div>
             </div>
             
@@ -183,7 +184,7 @@ export default function App() {
         {showDepositModal && currentWallet && (
           <DepositModal 
             gameWalletAddress={currentWallet.address}
-            metamaskAddress={metamaskAddress}
+            metamaskAddress={metamaskAddress ? metamaskAddress as string : null}
             onDeposit={handleDeposit}
             onClose={() => setShowDepositModal(false)}
           />
@@ -192,7 +193,7 @@ export default function App() {
         {showWithdrawModal && currentWallet && (
           <WithdrawModal 
             gameWalletAddress={currentWallet.address}
-            metamaskAddress={metamaskAddress}
+            metamaskAddress={metamaskAddress ? metamaskAddress as string : null}
             balance={walletBalance}
             onWithdraw={handleWithdraw}
             onClose={() => setShowWithdrawModal(false)}
