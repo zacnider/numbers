@@ -1,24 +1,13 @@
 // components/wallet/TransactionList.tsx
-// İşlem listesi bileşeni
+// İşlem listesi bileşeni - İngilizce versiyonu
 
 import React from "react";
-
-interface Transaction {
-  hash: string;
-  type: string;
-  status: string;
-  amount?: string;
-  timestamp: number;
-}
-
-interface TransactionListProps {
-  transactions: Transaction[];
-}
+import { TransactionListProps } from "@/types";
 
 export const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleString('tr-TR', {
+    return date.toLocaleString('en-US', {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
@@ -28,7 +17,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
   
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <h2 className="text-lg font-bold mb-3">İşlem Geçmişi</h2>
+      <h2 className="text-lg font-bold mb-3">Transaction History</h2>
       
       <div className="bg-gray-50 p-3 rounded max-h-[180px] overflow-y-auto">
         {transactions.length > 0 ? (
@@ -47,9 +36,9 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
                   <span className="text-xs text-gray-500">{formatDate(tx.timestamp)}</span>
                 </div>
                 <span className={`text-xs px-2 py-1 rounded-full ${
-                  tx.status === 'onaylandı' 
+                  tx.status === 'confirmed' 
                     ? 'bg-green-100 text-green-800' 
-                    : tx.status === 'beklemede' 
+                    : tx.status === 'pending' 
                       ? 'bg-yellow-100 text-yellow-800' 
                       : 'bg-red-100 text-red-800'
                 }`}>
@@ -59,7 +48,7 @@ export const TransactionList: React.FC<TransactionListProps> = ({ transactions }
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500">Henüz işlem yok.</p>
+          <p className="text-sm text-gray-500">No transactions yet.</p>
         )}
       </div>
     </div>
