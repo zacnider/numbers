@@ -1,5 +1,5 @@
 // hooks/useWalletManager.ts
-// Cüzdan yönetimi hook'u - Warpcast uyumlu düzeltme
+// Cüzdan yönetimi hook'u - En basit ve güvenli çözüm
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useConnect, useDisconnect, useSwitchChain, useBalance, useWalletClient, useSendTransaction } from 'wagmi';
@@ -17,7 +17,7 @@ export const useWalletManager = () => {
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
-  const sendTransaction = useSendTransaction();
+  const { sendTransaction } = useSendTransaction();
   
   // Cüzdan durumu
   const [wallets, setWallets] = useState<Wallet[]>([]);
@@ -183,39 +183,14 @@ export const useWalletManager = () => {
     }
   }, [wallets, currentWallet]);
   
-  // Para yatır - Warpcast uyumlu düzeltme
+  // Para yatır - En basit yaklaşım
   const depositFunds = useCallback(async (amount: string) => {
     if (!isConnected || !address || !currentWallet) {
       throw new Error('Cüzdan bağlı değil');
     }
     
     try {
-      // sendTransaction'ı çağır ve sonucu bekleyelim
-      // Ancak tip hatalarını önlemek için geçici bir işlem hash'i oluşturacağız
-      
-      // Gerçek işlem gönderiliyor
-      sendTransaction.sendTransaction({
-        to: currentWallet.address as `0x${string}`,
-        value: parseEther(amount),
-      }).catch(error => {
-        console.error('Yatırma işlemi başarısız:', error);
-        
-        // Hatayı yansıtmak için işlem durumunu güncelle
-        const txIndex = transactions.findIndex(tx => 
-          tx.type === 'Deposit' && 
-          tx.amount === amount && 
-          tx.timestamp > Date.now() - 60000 && // Son 1 dakika içinde
-          tx.status === 'pending'
-        );
-        
-        if (txIndex >= 0) {
-          const updatedTransactions = [...transactions];
-          updatedTransactions[txIndex].status = 'failed';
-          setTransactions(updatedTransactions);
-        }
-      });
-      
-      // Geçici bir işlem hash'i oluştur (gerçek hash gelince güncellenebilir)
+      // Geçici bir işlem hash'i oluştur
       const tempHash = `0x${Math.random().toString(16).substring(2)}${Date.now().toString(16)}`;
       
       // İşlemi listeye ekle
@@ -229,12 +204,26 @@ export const useWalletManager = () => {
       
       setTransactions(prev => [newTransaction, ...prev].slice(0, 20)); // Maks 20 işlem tut
       
+      // Asenkron olarak işlemi gönder, sonucu beklemeden
+      try {
+        // sendTransaction'ı çağır, ancak Promise döndürmediği için try/catch içinde ele al
+        sendTransaction({
+          to: currentWallet.address as `0x${string}`,
+          value: parseEther(amount),
+        });
+      } catch (sendError) {
+        console.error('İşlem gönderimi sırasında hata:', sendError);
+        // İşlem durumunu güncelle
+        updateTransactionStatus(tempHash, 'failed');
+        throw sendError;
+      }
+      
       return tempHash;
     } catch (error) {
       console.error('Yatırma işlemi başarısız:', error);
       throw error;
     }
-  }, [isConnected, address, currentWallet, sendTransaction, transactions]);
+  }, [isConnected, address, currentWallet, sendTransaction]);
   
   // Para çek
   const withdrawFunds = useCallback(async (amount: string) => {
