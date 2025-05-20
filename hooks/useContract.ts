@@ -86,7 +86,7 @@ export const useContract = () => {
       const encodedData = contractInterface.encodeFunctionData(functionName, []);
       
       // Gas tahmini ve güvenli bir limit
-      const gasEstimate = 100000; // Sabit gas limit
+      const gasEstimate = 50000; // Sabit gas limit
       
       // Gas fiyatı
       const gasPrice = await provider.getGasPrice();
