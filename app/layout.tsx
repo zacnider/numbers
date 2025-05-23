@@ -10,7 +10,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Monad Sliding Puzzle",
-  description: "Monad blockchain üzerinde çalışan bir sayı kaydırma bulmacası",
+  description: "A number shift puzzle running on the Monad blockchain",
 };
 
 export default function RootLayout({
