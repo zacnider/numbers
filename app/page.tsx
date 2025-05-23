@@ -9,7 +9,7 @@ const frame = {
   version: "next",
   imageUrl: `${APP_URL}/images/feed.png`,
   button: {
-    title: "Sliding Puzzle Oyna",
+    title: "Sliding Puzzle Play",
     action: {
       type: "launch_frame",
       name: "Monad Sliding Puzzle",
@@ -23,10 +23,10 @@ const frame = {
 export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Monad Sliding Puzzle",
-    description: "Monad blockchain üzerinde çalışan bir sayı kaydırma bulmacası",
+    description: "A number shift puzzle running on the Monad blockchain",
     openGraph: {
       title: "Monad Sliding Puzzle",
-      description: "Monad blockchain üzerinde çalışan bir sayı kaydırma bulmacası",
+      description: "A number shift puzzle running on the Monad blockchain",
     },
     other: {
       "fc:frame": JSON.stringify(frame),
